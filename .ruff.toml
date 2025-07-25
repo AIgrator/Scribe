@@ -1,0 +1,19 @@
+line-length = 160
+
+[lint]
+extend-select = ["F", "E", "W", "I", "N", "B", "D"]
+
+ignore = [
+    "N802",
+    "D100", "D101", "D102", "D103", "D104", "D105", "D107",
+    # Temporarily ignore D401 to unblock other fixes
+    "D401"
+]
+
+extend-fixable = [
+    "I001", "F401", "W291", "W292", "W293",
+    "D200", "D205", "D212", "D415"
+]
+
+[format]
+quote-style = "double"

@@ -1,0 +1,7 @@
+numpy
+sounddevice
+keyboard
+vosk 
+pywin32
+pyqt5
+ruff

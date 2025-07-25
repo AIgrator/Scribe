@@ -1,0 +1,44 @@
+# Python cache and temp files
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.log
+
+# Virtual environments
+venv/
+.venv/
+
+# Build and distribution artifacts
+build/
+dist/
+*.egg-info/
+
+# Editor and IDE settings
+.vscode/
+.idea/
+.settings/
+*.sublime-project
+*.sublime-workspace
+
+# GitHub specific files
+.github/
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Tools and cache
+.ruff_cache/
+
+# User-specific files (should not be in repo)
+settings.json
+.env
+
+# Folders with generated or large content
+screenshots/
+records/
+models/
+cache/
+
+test_uwp_scanner.py
