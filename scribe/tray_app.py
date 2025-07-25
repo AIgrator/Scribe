@@ -151,7 +151,7 @@ class TrayApp(QObject):
 
         # Documentation Action
         action_documentation = QAction(self.texts.get('documentation', 'Documentation'), self.app)
-        action_documentation.triggered.connect(lambda: webbrowser.open('https://github.com/AIgrator/Scribe'))
+        action_documentation.triggered.connect(lambda: webbrowser.open('https://aigrator.github.io/Scribe/'))
         self.menu.addAction(action_documentation)
 
         self.menu.addSeparator()
