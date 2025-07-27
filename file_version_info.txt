@@ -1,8 +1,8 @@
 # UTF-8
 VSVersionInfo(
   ffi=FixedFileInfo(
-    filevers=(1, 0, 0, 0),
-    prodvers=(1, 0, 0, 0),
+    filevers=(1, 1, 0, 0),
+    prodvers=(1, 1, 0, 0),
     mask=0x3f,
     flags=0x0,
     OS=0x40004,
@@ -18,12 +18,12 @@ VSVersionInfo(
           [
             StringStruct(u'CompanyName', u'AIgrator'),
             StringStruct(u'FileDescription', u'Scribe'),
-            StringStruct(u'FileVersion', u'1.0.0'),
+            StringStruct(u'FileVersion', u'1.1.0'),
             StringStruct(u'InternalName', u'Scribe'),
             StringStruct(u'LegalCopyright', u'Copyright © AIgrator 2025'),
             StringStruct(u'OriginalFilename', u'Scribe.exe'),
             StringStruct(u'ProductName', u'Scribe'),
-            StringStruct(u'ProductVersion', u'1.0.0')
+            StringStruct(u'ProductVersion', u'1.1.0')
           ]
         )
       ]
