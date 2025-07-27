@@ -52,6 +52,7 @@ class Application(QObject):
         self.initial_load_complete = False
         self.main_window_was_visible_before_reload = False
         self.settings_window_was_visible_before_reload = False
+        self.is_loading_model = False
 
         base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         models_dir = os.path.join(base_dir, "models")
@@ -109,6 +110,9 @@ class Application(QObject):
 
         self._busy_dialog = BusyDialog(texts=self.texts)
         self._busy_dialog.show()
+        self.tray_app.set_menu_enabled(False)
+        self.is_loading_model = True
+        self.tray_app.update_tray_ui()
 
         loader = ControllerLoader(model_path, inserter_type, self.settings_manager)
 
@@ -126,6 +130,8 @@ class Application(QObject):
         logger.info(f"Controller loading finished. Error: {error}")
         if self._busy_dialog:
             self._busy_dialog.close()
+        self.tray_app.set_menu_enabled(True)
+        self.is_loading_model = False
 
         if error:
             QMessageBox.critical(None, self.texts.get('busy_loading_model_error_title', 'Model loading error'), str(error))

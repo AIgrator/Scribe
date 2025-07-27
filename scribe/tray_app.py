@@ -43,6 +43,10 @@ class TrayApp(QObject):
 
     def _on_tray_activated(self, reason):
         """Handles tray icon activation events."""
+        # Do nothing if a model is currently being loaded
+        if getattr(self.application, 'is_loading_model', False):
+            return
+
         if reason == QSystemTrayIcon.Trigger:  # Left-click
             main_window_settings = self.settings_manager.get('main_window', {})
             if main_window_settings.get('open_on_tray_click', True):
@@ -57,19 +61,38 @@ class TrayApp(QObject):
         if QThread.currentThread() != QCoreApplication.instance().thread():
             self.update_tray_ui_signal.emit()
             return
+        
+        # This part runs only on the main thread
         self._build_menu()
         self._update_tray_icon()
+        # After building the menu, ensure it's disabled if we are in a loading state.
+        if getattr(self.application, 'is_loading_model', False):
+            self.set_menu_enabled(False)
 
     def _update_tray_ui_slot(self):
-        self._build_menu()
-        self._update_tray_icon()
+        # This is the slot for cross-thread updates. It just calls the main method.
+        self.update_tray_ui()
 
     def _update_tray_icon(self):
         """Updates the tray icon's color and tooltip based on the application state."""
+        size = 32
+        # Check for loading state first
+        if getattr(self.application, 'is_loading_model', False):
+            self.tray.setToolTip(self.texts.get('busy_loading_model', 'Loading model, please wait...'))
+            pixmap = QPixmap(size, size)
+            pixmap.fill(QColor(128, 128, 128))  # Gray color for loading
+            painter = QPainter(pixmap)
+            font = QFont('Arial', 16, QFont.Bold)
+            painter.setFont(font)
+            painter.setPen(QColor(255, 255, 255))
+            painter.drawText(pixmap.rect(), 0x84, "...")  # 0x84 = Qt.AlignCenter
+            painter.end()
+            self.tray.setIcon(QIcon(pixmap))
+            return  # Exit early
+
         settings = self.settings_manager.all()
         lang_code = settings.get('language', 'en').upper()
-        size = 32
-
+        
         tray_color_settings = settings.get('tray_color', self.settings_manager.DEFAULTS.get('tray_color', {}))
         def get_color(key, default):
             val = tray_color_settings.get(key, default)
@@ -150,21 +173,36 @@ class TrayApp(QObject):
         self.menu.addAction(action_main_window)
 
         # Documentation Action
-        action_documentation = QAction(self.texts.get('documentation', 'Documentation'), self.app)
-        action_documentation.triggered.connect(lambda: webbrowser.open('https://aigrator.github.io/Scribe/'))
-        self.menu.addAction(action_documentation)
+        self.action_documentation = QAction(self.texts.get('documentation', 'Documentation'), self.app)
+        self.action_documentation.triggered.connect(lambda: webbrowser.open('https://aigrator.github.io/Scribe/'))
+        self.menu.addAction(self.action_documentation)
 
         self.menu.addSeparator()
 
         # About Action
-        action_about = QAction(self.texts.get('about', 'About'), self.app)
-        action_about.triggered.connect(self._show_about_dialog)
-        self.menu.addAction(action_about)
+        self.action_about = QAction(self.texts.get('about', 'About'), self.app)
+        self.action_about.triggered.connect(self._show_about_dialog)
+        self.menu.addAction(self.action_about)
 
         # Exit Action
-        action_exit = QAction(self.texts['exit'], self.app)
-        action_exit.triggered.connect(self.application.exit_app)
-        self.menu.addAction(action_exit)
+        self.action_exit = QAction(self.texts['exit'], self.app)
+        self.action_exit.triggered.connect(self.application.exit_app)
+        self.menu.addAction(self.action_exit)
+
+    def set_menu_enabled(self, enabled):
+        """Enables or disables all menu items except for exceptions."""
+        exceptions = [
+            self.action_documentation,
+            self.action_about,
+            self.action_exit
+        ]
+        for action in self.menu.actions():
+            if action not in exceptions and not action.isSeparator():
+                action.setEnabled(enabled)
+            # Also handle sub-menus
+            if action.menu():
+                for sub_action in action.menu().actions():
+                    sub_action.setEnabled(enabled)
 
     def _build_mode_menu(self, settings):
         mode_menu = QMenu(self.texts.get('modes_control', 'Mode Control'), self.menu)
