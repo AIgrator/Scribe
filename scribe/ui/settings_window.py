@@ -99,13 +99,13 @@ class SettingsWindow(QDialog):
         current_widget = self.pages_stack.currentWidget()
         anchor = self.help_map.get(current_widget)
         base_url = "https://aigrator.github.io/Scribe/"
-        
+
         if anchor:
             url = f"{base_url}{anchor}"
         else:
             # Fallback to the main page if no specific anchor is found
             url = base_url
-            
+
         webbrowser.open(url)
 
     def on_category_changed(self, idx):

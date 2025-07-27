@@ -61,7 +61,7 @@ class TrayApp(QObject):
         if QThread.currentThread() != QCoreApplication.instance().thread():
             self.update_tray_ui_signal.emit()
             return
-        
+
         # This part runs only on the main thread
         self._build_menu()
         self._update_tray_icon()
@@ -92,7 +92,7 @@ class TrayApp(QObject):
 
         settings = self.settings_manager.all()
         lang_code = settings.get('language', 'en').upper()
-        
+
         tray_color_settings = settings.get('tray_color', self.settings_manager.DEFAULTS.get('tray_color', {}))
         def get_color(key, default):
             val = tray_color_settings.get(key, default)
