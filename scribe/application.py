@@ -49,6 +49,8 @@ class Application(QObject):
         self._controller_loader_version = 0
         self._controller_loader = None
         self._busy_dialog = None
+        self.initial_load_complete = False
+        self.main_window_was_visible_before_reload = False
 
         base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         models_dir = os.path.join(base_dir, "models")
@@ -172,6 +174,20 @@ class Application(QObject):
         self.tray_app.update_tray_ui()
         self.controller_reloaded.emit(self.controller)
 
+        # Logic for showing the main window after loading
+        if not self.initial_load_complete:
+            # This was the initial startup load
+            self.initial_load_complete = True
+            if self.settings.get('main_window', {}).get('show_on_startup', True):
+                self.show_main_window()
+        else:
+            # This was a subsequent model change
+            if self.main_window_was_visible_before_reload:
+                self.show_main_window()
+
+        # Reset the flag for the next change
+        self.main_window_was_visible_before_reload = False
+
     def on_settings_changed(self, new_settings):
         self.settings = new_settings
         self.tray_app.update_tray_ui()
@@ -197,6 +213,11 @@ class Application(QObject):
 
         if reload_model and new_model_path:
             logger.info("Reloading controller due to model/language change.")
+            if self._main_voice_window and self._main_voice_window.isVisible():
+                self.main_window_was_visible_before_reload = True
+                self._main_voice_window.hide()
+            else:
+                self.main_window_was_visible_before_reload = False
             self.load_controller_async(new_model_path, new_inserter_type)
         elif new_inserter_type != self.inserter_type and self.controller:
             self.inserter_type = new_inserter_type
@@ -252,6 +273,4 @@ class Application(QObject):
         self.app.quit()
 
     def run(self):
-        if self.settings.get('main_window', {}).get('show_on_startup', True):
-            self.show_main_window()
         sys.exit(self.app.exec_())
