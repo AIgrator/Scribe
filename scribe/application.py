@@ -51,6 +51,7 @@ class Application(QObject):
         self._busy_dialog = None
         self.initial_load_complete = False
         self.main_window_was_visible_before_reload = False
+        self.settings_window_was_visible_before_reload = False
 
         base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         models_dir = os.path.join(base_dir, "models")
@@ -184,9 +185,12 @@ class Application(QObject):
             # This was a subsequent model change
             if self.main_window_was_visible_before_reload:
                 self.show_main_window()
+            if self.settings_window_was_visible_before_reload:
+                self.show_settings()
 
-        # Reset the flag for the next change
+        # Reset the flags for the next change
         self.main_window_was_visible_before_reload = False
+        self.settings_window_was_visible_before_reload = False
 
     def on_settings_changed(self, new_settings):
         self.settings = new_settings
@@ -213,11 +217,19 @@ class Application(QObject):
 
         if reload_model and new_model_path:
             logger.info("Reloading controller due to model/language change.")
+            # Check and hide main window
             if self._main_voice_window and self._main_voice_window.isVisible():
                 self.main_window_was_visible_before_reload = True
                 self._main_voice_window.hide()
             else:
                 self.main_window_was_visible_before_reload = False
+            # Check and hide settings window
+            if self.settings_window and self.settings_window.isVisible():
+                self.settings_window_was_visible_before_reload = True
+                self.settings_window.hide()
+            else:
+                self.settings_window_was_visible_before_reload = False
+
             self.load_controller_async(new_model_path, new_inserter_type)
         elif new_inserter_type != self.inserter_type and self.controller:
             self.inserter_type = new_inserter_type
