@@ -10,11 +10,12 @@ logger = logging.getLogger(__name__)
 
 class ControllerLoader(QThread):
     finished = pyqtSignal(object, object)  # (controller, error)
-    def __init__(self, model_path, inserter_type, settings_manager):
+    def __init__(self, model_path, inserter_type, settings_manager, application):
         super().__init__()
         self.model_path = model_path
         self.inserter_type = inserter_type
         self.settings_manager = settings_manager
+        self.application = application
     def run(self):
         try:
             # 1. Determine sample_rate for the model
@@ -53,7 +54,8 @@ class ControllerLoader(QThread):
                 settings_manager=self.settings_manager,
                 need_resample=need_resample,
                 input_sample_rate=input_sample_rate,
-                blocksize=self.settings_manager.all().get('blocksize', 4000)
+                blocksize=self.settings_manager.all().get('blocksize', 4000),
+                application=self.application
             )
             self.finished.emit(controller, None)
         except Exception as e:

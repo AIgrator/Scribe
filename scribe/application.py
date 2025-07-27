@@ -114,7 +114,7 @@ class Application(QObject):
         self.is_loading_model = True
         self.tray_app.update_tray_ui()
 
-        loader = ControllerLoader(model_path, inserter_type, self.settings_manager)
+        loader = ControllerLoader(model_path, inserter_type, self.settings_manager, self)
 
         def on_loaded(controller, error):
             if current_version != self._controller_loader_version:

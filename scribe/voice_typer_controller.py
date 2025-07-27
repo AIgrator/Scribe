@@ -23,9 +23,11 @@ class VoiceTyperController(QObject):
         blocksize=4000,
         settings_manager=None,
         need_resample=False,
-        input_sample_rate=None
+        input_sample_rate=None,
+        application=None
     ):
         super().__init__()
+        self.application = application
         self.model_path = model_path
         self.inserter_type = inserter_type
         self.sample_rate = sample_rate
@@ -103,6 +105,9 @@ class VoiceTyperController(QObject):
                     self.auto_stop_countdown = timeout_seconds
 
     def start(self):
+        if self.application and self.application.is_loading_model:
+            logger.debug("Ignoring start() request: model is loading.")
+            return
         logger.info(f"[VoiceTyperController] start() called. Current running state: {self.running}")
         if not self.running:
             self.running = True # Set running to true before starting threads
@@ -119,6 +124,9 @@ class VoiceTyperController(QObject):
                 self.auto_stop_thread.start()
 
     def stop(self):
+        if self.application and self.application.is_loading_model:
+            logger.debug("Ignoring stop() request: model is loading.")
+            return
         logger.info(f"[VoiceTyperController] stop() called. Current running state: {self.running}")
         if not self.running:
             return
@@ -135,6 +143,9 @@ class VoiceTyperController(QObject):
         logger.info("Recognition stopped.")
 
     def toggle(self):
+        if self.application and self.application.is_loading_model:
+            logger.debug("Ignoring toggle() request: model is loading.")
+            return
         try:
             if self.running:
                 self.stop()
@@ -145,6 +156,9 @@ class VoiceTyperController(QObject):
             traceback.print_exc()
 
     def change_microphone(self, device_name):
+        if self.application and self.application.is_loading_model:
+            logger.debug("Ignoring change_microphone() request: model is loading.")
+            return
         """Centralized method for changing microphone.
 
         Stops recognition, changes device, saves setting,
@@ -175,6 +189,9 @@ class VoiceTyperController(QObject):
         logger.info("[VoiceTyperController] Microphone change complete. Emitted signal.")
 
     def switch_to_transcribe_mode(self):
+        if self.application and self.application.is_loading_model:
+            logger.debug("Ignoring switch_to_transcribe_mode() request: model is loading.")
+            return
         logger.info("Switched to transcription mode")
         if self.running and getattr(self.recognizer, 'mode', None) == 'transcribe':
             self.stop()
@@ -186,6 +203,9 @@ class VoiceTyperController(QObject):
         self.state_changed.emit(self.running, self.recognizer.mode)
 
     def switch_to_command_mode(self):
+        if self.application and self.application.is_loading_model:
+            logger.debug("Ignoring switch_to_command_mode() request: model is loading.")
+            return
         from scribe.command_handler import command_mode
         logger.info("Switched to command mode")
         if self.running and getattr(self.recognizer, 'mode', None) == 'command':
