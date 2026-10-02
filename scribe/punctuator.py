@@ -24,20 +24,34 @@ _GEO_PREFIXES = {"санкт", "нью", "сан", "лос", "сен", "усть
 _PROPER_TAGS = {"Name", "Surn", "Patr", "Geox"}
 _PROPER_SCORE_MIN = 0.5
 
-_morph = None
+_morphs = {}
+
+# Languages where a word after a comma must stay lowercase (proper nouns excepted).
+_COMMA_LOWER_LANGS = ('ru', 'uk')
+_WORD_RE = r'A-Za-zА-Яа-яЁёІіЇїЄєҐґ'
 
 
-def _get_morph():
-    """Lazy singleton for pymorphy2 (Russian morphology, works on lowercase)."""
-    global _morph
-    if _morph is None:
+def _get_morph(lang='ru'):
+    """Lazy singletons of pymorphy2 analyzers (Russian + Ukrainian).
+
+    Note: Ukrainian dicts do not tag proper nouns, so for 'uk' the proper
+    exception only catches names shared with Russian. Ukrainian vocatives
+    ("Скажи, Марічко") are a known limitation, to be covered by the user
+    dictionary later.
+    """
+    if lang not in ('ru', 'uk'):
+        return None
+    if lang not in _morphs:
         try:
             import pymorphy2
-            _morph = pymorphy2.MorphAnalyzer()
+            if lang == 'ru':
+                _morphs[lang] = pymorphy2.MorphAnalyzer()
+            else:
+                _morphs[lang] = pymorphy2.MorphAnalyzer(lang='uk')
         except Exception as e:
-            logger.warning(f"[Punctuator] pymorphy2 unavailable, proper-noun capitalization off: {e}")
-            _morph = False
-    return _morph or None
+            logger.warning(f"[Punctuator] pymorphy2-{lang} unavailable: {e}")
+            _morphs[lang] = False
+    return _morphs[lang] or None
 
 
 def _is_proper_top(word, morph):
@@ -65,9 +79,10 @@ def _is_geo_head(word, morph):
 
 
 class Punctuator:
-    def __init__(self, settings_manager=None, model_dir=None):
+    def __init__(self, settings_manager=None, model_dir=None, lang=None):
         self.settings_manager = settings_manager
         self.model_dir = model_dir  # resolved lazily
+        self._lang = lang  # explicit override (tests, embeddings)
         self._session = None
         self._tokenizer = None
         self._id2mark = None
@@ -95,21 +110,23 @@ class Punctuator:
     def lang(self):
         if getattr(self, '_lang', None):
             return self._lang
-        if self.model_dir:
-            self._lang = os.path.basename(os.path.normpath(self.model_dir))
-            return self._lang
-        lang = 'ru'
         if self.settings_manager and hasattr(self.settings_manager, 'get'):
             try:
                 custom = self.settings_manager.get('punctuation_model_dir', '')
-                if custom:
-                    self._lang = os.path.basename(os.path.normpath(custom))
-                    return self._lang
+                if custom and not self.model_dir:
+                    self.model_dir = custom
                 lang = self.settings_manager.get('language', 'ru') or 'ru'
+                self._lang = lang
+                return lang
             except Exception:
                 pass
-        self._lang = lang
-        return lang
+        if self.model_dir:
+            base = os.path.basename(os.path.normpath(self.model_dir))
+            # Only trust short codes ('ru', 'en', 'uk'); temp paths default to 'ru'.
+            self._lang = base if len(base) == 2 else 'ru'
+            return self._lang
+        self._lang = 'ru'
+        return 'ru'
 
     def _ensure_loaded(self):
         """Load ONNX session + tokenizer on first use. Returns True if neural path works."""
@@ -245,12 +262,13 @@ class Punctuator:
     def capitalize_proper(text, lang='ru'):
         """Uppercase likely proper nouns.
 
-        Russian only (pymorphy2); other languages rely on the neural
-        model's own casing + sentence rules.
+        Russian via pymorphy2 (works on lowercase); Ukrainian runs the same
+        code but its dicts lack proper tags, so it only catches shared
+        spellings — Ukrainian names are a known gap for now.
         """
-        if lang != 'ru':
+        if lang not in ('ru', 'uk'):
             return text
-        morph = _get_morph()
+        morph = _get_morph('ru')
         if morph is None or not text:
             return text
         words = text.split()
@@ -281,6 +299,57 @@ class Punctuator:
             out.append(f"{pre}{core.capitalize()}{post}" if cap else w)
         return " ".join(out)
 
+    def _looks_proper(self, word):
+        """True if the word looks like a proper noun in ru/uk morphology."""
+        low = word.lower()
+        for lang in ('ru', 'uk'):
+            morph = _get_morph(lang)
+            if morph is not None and _is_proper_top(low, morph):
+                return True
+        return False
+
+    def lowercase_after_comma_text(self, text):
+        """Force lowercase right after a comma (ru/uk rule), except proper nouns.
+
+        Safety net: no caps source should uppercase here (commas never start
+        sentences), but cross-final state or voice commands can leak one through.
+        """
+        if self.lang not in _COMMA_LOWER_LANGS or not text:
+            return text
+
+        def _fix(m):
+            pre, word = m.group(1), m.group(2)
+            if not word[:1].isupper() or self._looks_proper(word):
+                return m.group(0)
+            return pre + word[0].lower() + word[1:]
+
+        return re.sub(r',(\s+)([' + _WORD_RE + r']+)', _fix, text)
+
+    def lowercase_after_comma_actions(self, actions):
+        """Same as above for the action stream.
+
+        Comma and word may sit in different fragments; keys in between
+        are handled.
+        """
+        if self.lang not in _COMMA_LOWER_LANGS:
+            return actions
+        out = [dict(a) for a in actions]
+        carry = False  # previous stream chunk ended with a comma
+        for act in out:
+            if act.get('type') == 'key':
+                if act.get('value') in ('Enter', 'Backspace'):
+                    carry = False
+                continue
+            v = self.lowercase_after_comma_text(act.get('value', ''))
+            if carry:
+                m = re.match(r'^(\s*)([' + _WORD_RE + r']+)', v)
+                if m and m.group(2)[:1].isupper() and not self._looks_proper(m.group(2)):
+                    w = m.group(2)
+                    v = m.group(1) + w[0].lower() + w[1:] + v[m.end():]
+            carry = bool(re.search(r',\s*$', v))
+            act['value'] = v
+        return out
+
     def process(self, text, sentence_start=True):
         """Full pipeline for one final chunk. Returns (text, next_sentence_start)."""
         if not text or not text.strip():
@@ -290,6 +359,7 @@ class Punctuator:
             text = self.cleanup_dupes(text)
             text = self.capitalize_proper(text, self.lang)
         text, next_start = self.capitalize_sentences(text, sentence_start)
+        text = self.lowercase_after_comma_text(text)
         return text, next_start
 
     def capitalize_actions(self, actions, sentence_start=True):
@@ -321,6 +391,7 @@ class Punctuator:
         tail = "".join(a.get('value', '') for a in new_actions if a.get('type') == 'text').rstrip()
         next_start = tail.endswith(_SENTENCE_END)
         new_actions = self.strip_punct_around_breaks(new_actions)
+        new_actions = self.lowercase_after_comma_actions(new_actions)
         return new_actions, next_start
 
     @staticmethod
@@ -340,6 +411,22 @@ class Punctuator:
                     out[i - 1]['value'] = re.sub(r'[,.!?:;…]+$', '', out[i - 1]['value'])
                 if i + 1 < len(out) and out[i + 1].get('type') == 'text':
                     out[i + 1]['value'] = re.sub(r'^[,.!?:;…]+', '', out[i + 1]['value'])
+        # Boundary "mark + [Backspace] + mark": e.g. neural "домой, " + spoken
+        # "точка" -> [Backspace]"." would give "домой,.". The Backspace only
+        # eats the space, so drop the stale mark AND the now-purposeless key.
+        # (If prev ends with a bare mark and no space, Backspace eats the mark
+        # itself — nothing to do.)
+        drop = set()
+        for i, act in enumerate(out):
+            if act.get('type') == 'key' and act.get('value') == 'Backspace':
+                if 0 < i < len(out) - 1:
+                    prev, nxt = out[i - 1], out[i + 1]
+                    if prev.get('type') == 'text' and nxt.get('type') == 'text':
+                        if (re.search(r'[,.!?:;…]\s+$', prev.get('value', ''))
+                                and re.match(r'\s*[.!?…]', nxt.get('value', ''))):
+                            prev['value'] = re.sub(r'[,.!?:;…]\s+$', '', prev['value'])
+                            drop.add(i)
+        out = [a for i, a in enumerate(out) if i not in drop]
         for act in out:
             if act.get('type') == 'text':
                 act['value'] = Punctuator.cleanup_dupes(act['value'])
