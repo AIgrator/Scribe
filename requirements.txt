@@ -6,3 +6,8 @@ pyqt5
 ruff
 copykitten
 installed-apps-scanner
+onnxruntime
+tokenizers
+pymorphy2
+pymorphy2-dicts-ru
+pymorphy2-dicts-uk
