@@ -134,9 +134,11 @@ class Punctuator:
             return True
         if self._load_attempted:
             return False
-        self._load_attempted = True
         if not self.enabled:
+            # Not an attempt: warmup or finals while disabled must not poison
+            # the flag, otherwise re-enabling would need an app restart.
             return False
+        self._load_attempted = True
         try:
             import onnxruntime as ort
             from tokenizers import Tokenizer
@@ -351,9 +353,14 @@ class Punctuator:
         return out
 
     def process(self, text, sentence_start=True):
-        """Full pipeline for one final chunk. Returns (text, next_sentence_start)."""
+        """Full pipeline for one final chunk. Returns (text, next_sentence_start).
+
+        When disabled, returns the text fully untouched (pure Vosk behavior).
+        """
         if not text or not text.strip():
             return text, sentence_start
+        if not self.enabled:
+            return text, True
         if self.enabled:
             text = self.punctuate_neural(text)
             text = self.cleanup_dupes(text)
@@ -368,7 +375,11 @@ class Punctuator:
         Needed because voice commands (e.g. "точка" -> ".") insert sentence-final
         marks AFTER the neural pass. Enter forces a new sentence, other keys are neutral.
         Returns (new_actions, next_sentence_start).
+
+        When disabled, actions pass through untouched (pure Vosk behavior).
         """
+        if not self.enabled:
+            return actions, True
         upper_next = sentence_start
         new_actions = []
         for act in actions:
