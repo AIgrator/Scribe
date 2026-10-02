@@ -1,7 +1,7 @@
 # ui/vosk_models_page.py
 
 from PyQt5.QtCore import Qt
-from PyQt5.QtWidgets import QAbstractItemView, QHBoxLayout, QMessageBox, QPushButton, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget
+from PyQt5.QtWidgets import QAbstractItemView, QCheckBox, QHBoxLayout, QMessageBox, QPushButton, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget
 
 from scribe.model_manager import LanguageSelectDialog, ModelDownloadDialog, ModelManager
 from scribe.utils import get_models_path
@@ -15,6 +15,13 @@ class VoskModelsPageWidget(QWidget):
         self.model_manager = ModelManager(get_models_path())
         self.models_dict = self.settings_manager.get('models', {})
         self.layout = QVBoxLayout(self)
+
+        # Punctuation toggle: on by default, user can switch back to raw Vosk text.
+        self.punct_cb = QCheckBox(self.texts.get('punctuation_enable', 'Enable punctuation and capitalization'))
+        self.punct_cb.setToolTip(self.texts.get('punctuation_enable_hint', ''))
+        self.punct_cb.setChecked(bool(self.settings_manager.get('enable_punctuation', True)))
+        self.punct_cb.toggled.connect(self.on_punct_toggled)
+        self.layout.addWidget(self.punct_cb)
 
         self.table = QTableWidget()
         self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
@@ -59,7 +66,15 @@ class VoskModelsPageWidget(QWidget):
 
     def _on_settings_changed(self, new_settings):
         """Called when settings are changed from anywhere in the application. Updates the table to reflect the current model."""
+        try:
+            self.punct_cb.blockSignals(True)
+            self.punct_cb.setChecked(bool(new_settings.get('enable_punctuation', True)))
+        finally:
+            self.punct_cb.blockSignals(False)
         self.update_table()
+
+    def on_punct_toggled(self, checked):
+        self.settings_manager.set('enable_punctuation', bool(checked))
     def set_selected_as_current(self):
         row = self.table.currentRow()
         if row < 0:

@@ -209,5 +209,7 @@
     "theme_settings_group": "Theme",
     "theme_light": "Light",
     "theme_dark": "Dark",
-    "theme_auto": "Auto (System)"
+    "theme_auto": "Auto (System)",
+    "punctuation_enable": "Enable punctuation and capitalization",
+    "punctuation_enable_hint": "Adds . , ? ! and capital letters to dictation. Works best for Russian and English, basic rules for other languages."
 }

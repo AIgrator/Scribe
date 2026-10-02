@@ -27,6 +27,8 @@ class SettingsManager(QObject):
         "commands_hotkey": {},    # Voice commands for hotkeys
         "enable_replacements": True,  # Enable word replacement for final text
         "enable_partial_replacements": True,  # Enable word replacement for partial insertions
+        "enable_punctuation": True,  # Punctuation + capitalization for final text (rules-only fallback if model missing)
+        "punctuation_model_dir": "",  # Custom punctuator model dir, empty = models/punct/<lang>
         "keyboard_settings": {   # Settings for keyboard inserter
             "key_delay_ms": 20,         # Delay between characters (ms)
             "after_text_delay_ms": 5,  # Delay after all text is inserted (ms per character)

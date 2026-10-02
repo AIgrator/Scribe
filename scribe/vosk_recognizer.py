@@ -105,6 +105,28 @@ class VoskRecognizer(QObject):
         # Load replacements and flags during initialization
         self._load_replacements()
 
+        # Offline punctuation + capitalization for final results (optional, rules-only fallback).
+        from scribe.punctuator import Punctuator
+        self.punctuator = Punctuator(settings_manager)
+        self._punct_sentence_start = True
+        # Warm up heavy bits (ONNX session, morph dicts) in background so the
+        # first final result isn't delayed. Daemon thread, pure CPU work.
+        try:
+            import threading as _th
+            _th.Thread(target=self._warmup_punctuator, daemon=True).start()
+        except Exception:
+            pass
+
+    def _warmup_punctuator(self):
+        try:
+            self.punctuator._ensure_loaded()
+            from scribe.punctuator import _get_morph
+            m = _get_morph()
+            if m is not None:
+                m.parse('раз')
+        except Exception as e:
+            logger.debug(f"[Punctuator] background warmup failed: {e}")
+
     def set_mode(self, mode, final_handler=None, partial_handler=None):
         """Allows changing the operation mode (transcribe/command/...) and handlers on the fly.
 
@@ -129,6 +151,8 @@ class VoskRecognizer(QObject):
         self.partial_prev = ""
         self.partial_buffer = ""
         self.last_partial_time = 0.0
+        # New mode = new dictation context for sentence capitalization
+        self._punct_sentence_start = True
 
         # Load replacements and flags
         self._load_replacements()
@@ -180,7 +204,7 @@ class VoskRecognizer(QObject):
         self.partial_prev = ""
         self.partial_buffer = ""
         self.last_partial_time = 0.0
-
+        self._punct_sentence_start = True
         # Create file for transcription immediately if enabled in settings
         settings = {}
         enabled = False
@@ -383,9 +407,26 @@ class VoskRecognizer(QObject):
 
         Calls the user final_handler if set. Handles text insertion unless in command mode.
         """
+        # 1. Neural punctuation + capitalization (final only, never partials).
+        # Runs before voice-command replacements so the model sees pure ASR output.
+        try:
+            if getattr(self, 'punctuator', None) is not None:
+                final_text, self._punct_sentence_start = self.punctuator.process(
+                    final_text, getattr(self, '_punct_sentence_start', True))
+        except Exception as e:
+            logger.warning(f"[Punctuator] pass failed, using raw final text: {e}")
+
         actions = None
         if self._replacements_enabled:
             actions = apply_replacements_actions(final_text, self._replacements)
+            # 2. Capitalize AFTER voice commands: a spoken "точка" inserts "."
+            # only here, and the next word must start uppercase.
+            try:
+                if getattr(self, 'punctuator', None) is not None:
+                    actions, self._punct_sentence_start = self.punctuator.capitalize_actions(
+                        actions, getattr(self, '_punct_sentence_start', True))
+            except Exception as e:
+                logger.warning(f"[Punctuator] caps-after-replacements failed: {e}")
             # For file writing and callback, collect a string without special commands
             final_text_plain = ''.join(
                 act['value'] if act['type'] == 'text' else '' for act in actions

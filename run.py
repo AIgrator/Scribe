@@ -2,6 +2,14 @@
 import os
 import sys
 
+# NOTE: onnxruntime must be imported BEFORE PyQt5 on Windows, otherwise its
+# native DLL fails to load (Qt DLLs shadow the MSVC runtime it needs).
+# The import is optional — the app works without it (rules-only punctuation).
+try:
+    import onnxruntime  # noqa: F401
+except Exception:
+    pass
+
 # Check if running under Wayland and set QT_QPA_PLATFORM accordingly
 if os.environ.get('XDG_SESSION_TYPE') == 'wayland':
     #os.environ['QT_QPA_PLATFORM'] = 'wayland'
