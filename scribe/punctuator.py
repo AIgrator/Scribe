@@ -158,12 +158,15 @@ class Punctuator:
         try:
             self._session = ort.InferenceSession(onnx_path, providers=['CPUExecutionProvider'])
             self._tokenizer = Tokenizer.from_file(tok_path)
-            # Label decoding, see model.json sidecar. Two styles:
+            # Label decoding, see model.json sidecar. Styles:
             #  - "after_each" (markusiko rubert ru): id -> mark appended after the word.
             #  - "this_word_case" (felflare bert en): "<mark><case>" per word, e.g.
             #    ".U" = period after + capitalize THIS word.
+            #  - "this_word_case_total" (rupunct small ru): "<CASE>_<MARK>", e.g.
+            #    "UPPER_PERIOD" = capitalize this word + period after it.
             self._style = "after_each"
             self._id2mark = {0: "!", 1: ",", 2: ".", 3: "...", 4: ":", 5: "?", 6: ""}
+            self._marks = {}
             try:
                 import json as _json
                 meta_path = os.path.join(d, 'model.json')
@@ -171,13 +174,13 @@ class Punctuator:
                     with open(meta_path, encoding='utf-8') as f:
                         meta = _json.load(f)
                     self._style = meta.get('style', 'after_each')
+                    self._marks = meta.get('marks', {})
                     id2label = meta.get('id2label')
                     if id2label:
-                        if self._style == 'this_word_case':
-                            self._id2mark = {int(k): v for k, v in id2label.items()}
+                        if self._style == 'after_each':
+                            self._id2mark = {int(k): self._marks.get(v, "") for k, v in id2label.items()}
                         else:
-                            marks = meta.get('marks', {})
-                            self._id2mark = {int(k): marks.get(v, "") for k, v in id2label.items()}
+                            self._id2mark = {int(k): v for k, v in id2label.items()}
             except Exception as e:
                 logger.warning(f"[Punctuator] bad model.json, using default labels: {e}")
             self._loaded = True
@@ -202,11 +205,16 @@ class Punctuator:
             if len(ids) > 250:  # model limit 256 with specials; truncate tail
                 ids, word_ids = ids[:250], word_ids[:250]
             mask = [1] * len(ids)
-            logits = self._session.run(
-                ["logits"],
-                {"input_ids": np.array([ids], dtype=np.int64),
-                 "attention_mask": np.array([mask], dtype=np.int64)},
-            )[0][0]
+            feed = {"input_ids": np.array([ids], dtype=np.int64),
+                    "attention_mask": np.array([mask], dtype=np.int64)}
+            try:
+                need = [i.name for i in self._session.get_inputs()]
+            except Exception:
+                need = []
+            if 'token_type_ids' in need:
+                feed['token_type_ids'] = np.zeros_like(feed['input_ids'])
+            logits = self._session.run(["logits"], feed)[0][0]
+            style = getattr(self, '_style', 'after_each')
             out = []
             for i, w in enumerate(words):
                 idxs = [j for j, wi in enumerate(word_ids) if wi == i]
@@ -214,7 +222,17 @@ class Punctuator:
                     out.append(w)
                     continue
                 pred_id = int(logits[idxs[-1]].argmax())
-                if getattr(self, '_style', 'after_each') == 'this_word_case':
+                if style == 'this_word_case_total':
+                    lab = str(self._id2mark.get(pred_id, 'LOWER_O'))
+                    head, _, suffix = lab.partition('_')
+                    if head == 'TOTAL':
+                        ww = w.upper()
+                    elif head == 'UPPER':
+                        ww = w[:1].upper() + w[1:] if w else w
+                    else:
+                        ww = w
+                    out.append(ww + self._marks.get(suffix, ""))
+                elif style == 'this_word_case':
                     lab = str(self._id2mark.get(pred_id, 'OO'))
                     ww = w.capitalize() if lab[-1:] == 'U' else w
                     if lab[:1] not in ('O', ''):
@@ -238,7 +256,11 @@ class Punctuator:
         text = re.sub(r'!!+', '!', text)
         text = re.sub(r'::+', ':', text)
         text = re.sub(r';,+', ';', text)
-        return text.replace(ph, "...")
+        text = text.replace(ph, "...")
+        # Em-dash spacing (ru typography): "Россия— большая" -> "Россия — большая".
+        text = re.sub(r'(\S)—', r'\1 —', text)
+        text = re.sub(r'—(\S)', r'— \1', text)
+        return text
 
     @staticmethod
     def capitalize_sentences(text, sentence_start):
