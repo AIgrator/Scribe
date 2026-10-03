@@ -102,9 +102,11 @@ class Punctuator:
         if self.model_dir:
             return self.model_dir
         lang = self.lang
-        base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        # NOTE: must be exe-aware! In a PyInstaller build __file__ points into
+        # the temp extraction dir, while models live next to the executable.
+        from scribe.utils import get_models_path
         # Per-language folder: models/punct/<lang>/. Missing folder => rules-only mode.
-        return os.path.join(base, 'models', 'punct', lang)
+        return os.path.join(get_models_path(), 'punct', lang)
 
     @property
     def lang(self):
