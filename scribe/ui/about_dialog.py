@@ -41,14 +41,28 @@ class AboutDialog(QDialog):
 
         form_layout = QFormLayout()
         form_layout.setContentsMargins(0, 0, 0, 0)  # Removed top margin to reduce space
-        version_label = QLabel("1.0.0") # TODO: Get version dynamically
-        author_label = QLabel("Litovchenko Yaroslav")
+        version_label = QLabel("1.3.0")
+        author_label = QLabel("Yaroslav Litovchenko")
+        email_url = "mailto:aigrator@gmail.com"
+        email_label = QLabel(f'<a href="{email_url}">aigrator@gmail.com</a>')
+        email_label.setOpenExternalLinks(True)
         repo_url = "https://github.com/AIgrator/Scribe"
-        repo_label = QLabel(f'<a href="{repo_url}">{repo_url}</a>')
+        repo_label = QLabel(f'<a href="{repo_url}">github.com/AIgrator/Scribe</a>')
         repo_label.setOpenExternalLinks(True)
+        home_url = "https://aigrator-scribe.sourceforge.net"
+        home_label = QLabel(f'<a href="{home_url}">aigrator-scribe.sourceforge.net</a>')
+        home_label.setOpenExternalLinks(True)
+        bugs_url = "https://github.com/AIgrator/Scribe/issues"
+        bugs_label = QLabel(f'<a href="{bugs_url}">github.com/AIgrator/Scribe/issues</a>')
+        bugs_label.setOpenExternalLinks(True)
+        license_label = QLabel("MIT")
         form_layout.addRow(self.texts.get('about_version', 'Version:'), version_label)
         form_layout.addRow(self.texts.get('about_author', 'Author:'), author_label)
-        form_layout.addRow(self.texts.get('about_source_code', 'Source Code:'), repo_label)
+        form_layout.addRow(self.texts.get('about_email', 'Email:'), email_label)
+        form_layout.addRow(self.texts.get('about_github', 'GitHub page:'), repo_label)
+        form_layout.addRow(self.texts.get('about_home', 'Home page:'), home_label)
+        form_layout.addRow(self.texts.get('about_bugs', 'Bugs/Suggestions:'), bugs_label)
+        form_layout.addRow(self.texts.get('about_license', 'License:'), license_label)
         info_layout.addLayout(form_layout)
 
         # Add stretch to push the info content to the top
@@ -64,15 +78,22 @@ class AboutDialog(QDialog):
         license_text_area.setFixedHeight(120) # Adjusted height
 
         license_text = (
-            "<p>Copyright (C) 2025 Litovchenko Yaroslav</p>"
-            "<p>This program is free software: you can redistribute it and/or modify it under the terms of the "
-            "GNU General Public License as published by the Free Software Foundation, either version 3 of the "
-            "License, or (at your option) any later version.</p>"
-            "<p>This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; "
-            "without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. "
-            "See the GNU General Public License for more details.</p>"
-            "<p>You should have received a copy of the GNU General Public License along with this program. "
-            "If not, see <a href=\"http://www.gnu.org/licenses/\">http://www.gnu.org/licenses/</a>.</p>"
+            "<p>Copyright (c) 2026 Yaroslav Litovchenko</p>"
+            "<p>Permission is hereby granted, free of charge, to any person obtaining a copy "
+            "of this software and associated documentation files (the \"Software\"), to deal "
+            "in the Software without restriction, including without limitation the rights "
+            "to use, copy, modify, merge, publish, distribute, sublicense, and/or sell "
+            "copies of the Software, and to permit persons to whom the Software is "
+            "furnished to do so, subject to the following conditions:</p>"
+            "<p>The above copyright notice and this permission notice shall be included in all "
+            "copies or substantial portions of the Software.</p>"
+            "<p>THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR "
+            "IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, "
+            "FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE "
+            "AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER "
+            "LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, "
+            "OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE "
+            "SOFTWARE.</p>"
         )
         license_text_area.setHtml(license_text)
         main_layout.addWidget(license_text_area)
@@ -90,4 +111,4 @@ class AboutDialog(QDialog):
         main_layout.addLayout(button_layout)
 
         self.setLayout(main_layout)
-        self.setFixedSize(520, 310)
+        self.setFixedSize(520, 430)

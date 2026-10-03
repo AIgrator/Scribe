@@ -213,5 +213,10 @@
     "punctuation_enable": "Enable punctuation and capitalization",
     "punctuation_enable_hint": "Adds . , ? ! and capital letters to dictation. Works best for Russian and English, basic rules for other languages.",
     "punct_download_title": "Downloading punctuation model",
-    "punct_download_label": "Punctuation model, language: {}"
+    "punct_download_label": "Punctuation model, language: {}",
+    "about_email": "Email:",
+    "about_github": "GitHub page:",
+    "about_home": "Home page:",
+    "about_bugs": "Bugs/Suggestions:",
+    "about_license": "License:"
 }
