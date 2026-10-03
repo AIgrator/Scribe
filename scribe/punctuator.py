@@ -128,6 +128,21 @@ class Punctuator:
         self._id2mark = None
         self._loaded = False
         self._load_attempted = False
+        self._context = []  # tail of previous finals (raw words) for neural context
+
+    @property
+    def context_words(self):
+        """How many previous words to feed the model as context."""
+        if self.settings_manager and hasattr(self.settings_manager, 'get'):
+            try:
+                return max(0, int(self.settings_manager.get('punct_context_words', 30) or 0))
+            except Exception:
+                return 30
+        return 30
+
+    def reset(self):
+        """New dictation session: forget word context (model stays loaded)."""
+        self._context = []
 
     @property
     def confidence(self):
@@ -243,7 +258,11 @@ class Punctuator:
             return False
 
     def punctuate_neural(self, text):
-        """Add punctuation marks with the neural model. Returns text unchanged on any failure."""
+        """Add punctuation marks with the neural model. Returns text unchanged on any failure.
+
+        Feeds trailing context (previous finals) so chunk boundaries get better
+        marks, but applies predictions to the current words only.
+        """
         if not text or not text.strip():
             return text
         if not self._ensure_loaded():
@@ -251,7 +270,18 @@ class Punctuator:
         try:
             import numpy as np
             words = text.split()
-            enc = self._tokenizer.encode_batch([words], is_pretokenized=True)[0]
+            # Remember raw words for the next finals (context is unpunctuated).
+            self._context.extend(words)
+            if len(self._context) > 120:
+                self._context = self._context[-120:]
+            nctx = self.context_words
+            ctx = self._context[-nctx:] if nctx > 0 else []
+            # Keep the whole input safely below the 256-token limit.
+            while len(ctx) + len(words) > 60 and ctx:
+                ctx.pop(0)
+            full = ctx + words
+            off = len(ctx)
+            enc = self._tokenizer.encode_batch([full], is_pretokenized=True)[0]
             ids = enc.ids
             word_ids = enc.word_ids
             if len(ids) > 250:  # model limit 256 with specials; truncate tail
@@ -270,7 +300,8 @@ class Punctuator:
             thr = getattr(self, 'confidence', 0.0) or 0.0
             out = []
             for i, w in enumerate(words):
-                idxs = [j for j, wi in enumerate(word_ids) if wi == i]
+                # word_ids index into the combined (context + words) list
+                idxs = [j for j, wi in enumerate(word_ids) if wi == off + i]
                 if not idxs:
                     out.append(w)
                     continue

@@ -109,6 +109,11 @@ class VoskRecognizer(QObject):
         from scribe.punctuator import Punctuator
         self.punctuator = Punctuator(settings_manager)
         self._punct_sentence_start = True
+        try:
+            if getattr(self, 'punctuator', None) is not None:
+                self.punctuator.reset()
+        except Exception:
+            pass
         # Warm up heavy bits (ONNX session, morph dicts) in background so the
         # first final result isn't delayed. Daemon thread, pure CPU work.
         try:
@@ -153,6 +158,11 @@ class VoskRecognizer(QObject):
         self.last_partial_time = 0.0
         # New mode = new dictation context for sentence capitalization
         self._punct_sentence_start = True
+        try:
+            if getattr(self, 'punctuator', None) is not None:
+                self.punctuator.reset()
+        except Exception:
+            pass
 
         # Load replacements and flags
         self._load_replacements()
@@ -205,6 +215,11 @@ class VoskRecognizer(QObject):
         self.partial_buffer = ""
         self.last_partial_time = 0.0
         self._punct_sentence_start = True
+        try:
+            if getattr(self, 'punctuator', None) is not None:
+                self.punctuator.reset()
+        except Exception:
+            pass
         # Create file for transcription immediately if enabled in settings
         settings = {}
         enabled = False
