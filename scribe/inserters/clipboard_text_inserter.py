@@ -1,5 +1,6 @@
 # inserters/linux_clipboard_text_inserter.py
 import logging
+import platform
 import queue
 import threading
 import time
@@ -10,6 +11,57 @@ from pynput.keyboard import Controller, Key
 from scribe.inserters.text_inserter import TextInserter
 
 logger = logging.getLogger(__name__)
+
+
+def _send_ctrl_v_win32(key_delay=0.02):
+    """Press Ctrl+V using virtual-key codes (layout-independent).
+
+    pynput's press('v') sends a *character*, which breaks on non-Latin layouts
+    (Russian, etc.) and can degrade into literal 'vvv' when the combo is too
+    fast. Virtual keys (VK_CONTROL/VK_V) work on any layout. Returns True on
+    success, False otherwise (caller falls back to pynput).
+    """
+    try:
+        import ctypes
+        import ctypes.wintypes
+
+        VK_CONTROL = 0x11  # noqa: N806 (Win32 constant)
+        VK_V = 0x56  # noqa: N806 (Win32 constant)
+        KEYEVENTF_KEYUP = 0x0002  # noqa: N806 (Win32 constant)
+
+        class KEYBDINPUT(ctypes.Structure):
+            _fields_ = [("wVk", ctypes.wintypes.WORD),
+                        ("wScan", ctypes.wintypes.WORD),
+                        ("dwFlags", ctypes.wintypes.DWORD),
+                        ("time", ctypes.wintypes.DWORD),
+                        ("dwExtraInfo", ctypes.POINTER(ctypes.c_ulong))]
+
+        class INPUT(ctypes.Structure):
+            _fields_ = [("type", ctypes.wintypes.DWORD),
+                        ("ki", KEYBDINPUT)]
+
+        INPUT_KEYBOARD = 1  # noqa: N806 (Win32 constant)
+
+        def _key(vk, up=False):
+            ki = KEYBDINPUT(wVk=vk, wScan=0,
+                            dwFlags=KEYEVENTF_KEYUP if up else 0,
+                            time=0, dwExtraInfo=None)
+            return INPUT(type=INPUT_KEYBOARD, ki=ki)
+
+        SendInput = ctypes.windll.user32.SendInput  # noqa: N806 (Win32 API)
+        SendInput.argtypes = [ctypes.wintypes.UINT, ctypes.POINTER(INPUT), ctypes.c_int]
+        SendInput.restype = ctypes.wintypes.UINT
+
+        seq = [_key(VK_CONTROL, False), _key(VK_V, False),
+               _key(VK_V, True), _key(VK_CONTROL, True)]
+        for inp in seq:
+            if SendInput(1, ctypes.byref(inp), ctypes.sizeof(inp)) != 1:
+                return False
+            time.sleep(key_delay)
+        return True
+    except Exception as e:
+        logger.warning(f"Win32 Ctrl+V failed: {e}")
+        return False
 
 
 class ClipboardTextInserter(TextInserter):
@@ -58,6 +110,16 @@ class ClipboardTextInserter(TextInserter):
         logger.info(f"erase_chars() called with count: {count}")
         self._queue.put(('erase_chars', count))
 
+    def _paste(self):
+        """Simulate Ctrl+V. Win32 virtual keys first, pynput as fallback."""
+        if platform.system() == 'Windows':
+            if _send_ctrl_v_win32():
+                return
+        with self._keyboard.pressed(Key.ctrl):
+            self._keyboard.press('v')
+            time.sleep(0.02)
+            self._keyboard.release('v')
+
     def _worker_loop(self):
         while self._running:
             try:
@@ -66,9 +128,7 @@ class ClipboardTextInserter(TextInserter):
                     break
                 if cmd == 'insert_text':
                     copykitten.copy(arg)
-                    with self._keyboard.pressed(Key.ctrl):
-                        self._keyboard.press('v')
-                        self._keyboard.release('v')
+                    self._paste()
                     time.sleep(self.clipboard_delay * len(arg))
                 elif cmd == 'insert_actions':
                     buf = ''
@@ -86,9 +146,7 @@ class ClipboardTextInserter(TextInserter):
                             elif key.lower() == 'backspace':
                                 buf = buf[:-1] if buf else buf
                     copykitten.copy(buf)
-                    with self._keyboard.pressed(Key.ctrl):
-                        self._keyboard.press('v')
-                        self._keyboard.release('v')
+                    self._paste()
                     time.sleep(self.clipboard_delay * len(buf))
                 elif cmd == 'erase_chars':
                     for _ in range(arg):
