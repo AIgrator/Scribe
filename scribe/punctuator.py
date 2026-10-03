@@ -17,6 +17,21 @@ import re
 
 logger = logging.getLogger(__name__)
 
+# TEMPORARY debug logging for the frozen build (removed before release).
+# Writes punct_debug.log next to the exe (or project root from source).
+def _dbg(msg):
+    try:
+        import sys as _sys
+        import time as _time
+        if getattr(_sys, 'frozen', False):
+            _base = os.path.dirname(_sys.executable)
+        else:
+            _base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        with open(os.path.join(_base, 'punct_debug.log'), 'a', encoding='utf-8') as _f:
+            _f.write(f"{_time.strftime('%H:%M:%S')} {msg}\n")
+    except Exception:
+        pass
+
 _MARKS = {"B-!": "!", "B-,": ",", "B-.": ".", "B-...": "...", "B-:": ":", "B-?": "?", "O": ""}
 _SENTENCE_END = (".", "!", "?", "...")
 # First parts of multi-word geo names whose head alone has no proper tag ("санкт петербург").
@@ -29,6 +44,24 @@ _morphs = {}
 # Languages where a word after a comma must stay lowercase (proper nouns excepted).
 _COMMA_LOWER_LANGS = ('ru', 'uk')
 _WORD_RE = r'A-Za-zА-Яа-яЁёІіЇїЄєҐґ'
+
+
+def _dict_path_for(lang):
+    """Direct path to pymorphy2 dictionaries, bypassing pkg_resources discovery.
+
+    Frozen apps cannot see entry points, so we resolve the data dir from the
+    package itself (same idea as the app's chdir workaround for model paths).
+    """
+    try:
+        if lang == 'ru':
+            import pymorphy2_dicts_ru as _pkg
+        elif lang == 'uk':
+            import pymorphy2_dicts_uk as _pkg
+        else:
+            return None
+        return os.path.join(os.path.dirname(_pkg.__file__), 'data')
+    except Exception:
+        return None
 
 
 def _get_morph(lang='ru'):
@@ -51,7 +84,22 @@ def _get_morph(lang='ru'):
         except Exception as e:
             logger.warning(f"[Punctuator] pymorphy2-{lang} unavailable: {e}")
             _morphs[lang] = False
-    return _morphs[lang] or None
+    morph = _morphs[lang] or None
+    if morph is None:
+        # Frozen fallback: explicit dictionary path (no entry points needed).
+        try:
+            import pymorphy2
+            dpath = _dict_path_for(lang)
+            if dpath and os.path.isdir(dpath):
+                if lang == 'ru':
+                    morph = pymorphy2.MorphAnalyzer(path=dpath)
+                else:
+                    morph = pymorphy2.MorphAnalyzer(path=dpath, lang='uk')
+                _morphs[lang] = morph
+                _dbg(f"pymorphy2-{lang} ok (explicit path)")
+        except Exception as e:
+            _dbg(f"pymorphy2-{lang} FAIL: {e}")
+    return morph or None
 
 
 def _is_proper_top(word, morph):
@@ -106,7 +154,13 @@ class Punctuator:
         # the temp extraction dir, while models live next to the executable.
         from scribe.utils import get_models_path
         # Per-language folder: models/punct/<lang>/. Missing folder => rules-only mode.
-        return os.path.join(get_models_path(), 'punct', lang)
+        d = os.path.join(get_models_path(), 'punct', lang)
+        _dbg(f"resolve lang={lang} dir={d} exists={os.path.isdir(d)}")
+        try:
+            _dbg(f"  files={sorted(os.listdir(d))}" if os.path.isdir(d) else "  no dir")
+        except Exception as _e:
+            _dbg(f"  listdir fail: {_e}")
+        return d
 
     @property
     def lang(self):
@@ -143,8 +197,27 @@ class Punctuator:
         self._load_attempted = True
         try:
             import onnxruntime as ort
+            _dbg("onnxruntime import ok")
             from tokenizers import Tokenizer
+            _dbg("tokenizers import ok")
         except Exception as e:
+            _dbg(f"imports FAIL: {e}")
+            # Pin down the real Win32 cause (126=missing module, 127=missing
+            # procedure, 193=bad image, 1114=init failed).
+            try:
+                import ctypes as _ct
+                import sys as _sys2
+                _mei2 = getattr(_sys2, '_MEIPASS', None)
+                if _mei2:
+                    _pyd = os.path.join(_mei2, 'onnxruntime', 'capi', 'onnxruntime_pybind11_state.pyd')
+                    _dbg(f"probing {_pyd} exists={os.path.exists(_pyd)}")
+                    try:
+                        _ct.WinDLL(_pyd)
+                        _dbg("probe WinDLL ok?!")
+                    except OSError as _oe:
+                        _dbg(f"probe winerror={getattr(_oe, 'winerror', '?')} errno={getattr(_oe, 'errno', '?')} {_oe}")
+            except Exception as _e2:
+                _dbg(f"probe itself failed: {_e2}")
             logger.warning(f"[Punctuator] onnxruntime/tokenizers missing, rules-only mode: {e}")
             return False
         d = self._resolve_model_dir()
@@ -155,11 +228,14 @@ class Punctuator:
             if os.path.exists(alt) and os.path.exists(tok_path):
                 onnx_path = alt
             else:
+                _dbg(f"MODEL NOT FOUND in {d}")
                 logger.warning(f"[Punctuator] model not found in {d}, rules-only mode")
                 return False
         try:
             self._session = ort.InferenceSession(onnx_path, providers=['CPUExecutionProvider'])
+            _dbg(f"ort session ok: {onnx_path}")
             self._tokenizer = Tokenizer.from_file(tok_path)
+            _dbg(f"tokenizer ok: {tok_path}")
             # Label decoding, see model.json sidecar. Styles:
             #  - "after_each" (markusiko rubert ru): id -> mark appended after the word.
             #  - "this_word_case" (felflare bert en): "<mark><case>" per word, e.g.
@@ -186,9 +262,11 @@ class Punctuator:
             except Exception as e:
                 logger.warning(f"[Punctuator] bad model.json, using default labels: {e}")
             self._loaded = True
+            _dbg(f"neural READY style={self._style}")
             logger.info(f"[Punctuator] neural model loaded from {d}")
             return True
         except Exception as e:
+            _dbg(f"load FAIL: {e}")
             logger.warning(f"[Punctuator] failed to load model, rules-only mode: {e}")
             return False
 
