@@ -2,43 +2,16 @@
 import os
 import sys
 
-# TEMPORARY debug: who pre-loaded MSVCP140 before us (removed before release).
-try:
-    import ctypes as _ct0
-    import datetime as _dt0
-
-    def _dbg0(_msg):
-        try:
-            _base0 = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else os.path.abspath('.')
-            with open(os.path.join(_base0, 'punct_debug.log'), 'a', encoding='utf-8') as _f:
-                _f.write(f"{_dt0.datetime.now().strftime('%H:%M:%S')} {_msg}\n")
-        except Exception:
-            pass
-
-    _k32 = _ct0.windll.kernel32
-    try:
-        _k32.GetModuleHandleW.argtypes = [_ct0.c_wchar_p]
-        _k32.GetModuleHandleW.restype = _ct0.c_void_p
-        _k32.GetModuleFileNameW.argtypes = [_ct0.c_void_p, _ct0.c_wchar_p, _ct0.c_uint32]
-        _k32.GetModuleFileNameW.restype = _ct0.c_uint32
-    except Exception:
-        pass
-    for _name in ('msvcp140.dll', 'msvcp140_1.dll', 'vcruntime140.dll', 'onnxruntime.dll'):
-        _h = _k32.GetModuleHandleW(_name)
-        if _h:
-            _buf = _ct0.create_unicode_buffer(1024)
-            _k32.GetModuleFileNameW(_h, _buf, 1024)
-            _dbg0(f"PRELOADED {_name} from {_buf.value}")
-        else:
-            _dbg0(f"not loaded yet: {_name}")
-except Exception as _e0:
-    pass
-
 # NOTE: onnxruntime must be imported BEFORE PyQt5 on Windows, otherwise its
 # native DLL fails to load (Qt DLLs shadow the MSVC runtime it needs).
 # The import is optional — the app works without it (rules-only punctuation).
 # DLL lookup: point Windows at the bundled onnxruntime dir first (frozen),
 # same chdir idea the app already uses for non-ASCII model paths.
+try:
+    import ctypes as _ct0  # noqa: F401  (kept for _pin below)
+except Exception:
+    pass
+
 try:
     import os as _os
     import sys as _sys
@@ -59,26 +32,10 @@ try:
                 pass
 
     _mei = getattr(_sys, '_MEIPASS', None)
-    _dbg0(f"frozen={bool(_mei)} mei={_mei}")
     if _mei:
         # Pinned MSVC runtime first: the bundled copy must win over any
         # older system/3rd-party one (e.g. Qt's 14.26 or inbox copies).
         _pin(_mei, ('vcruntime140.dll', 'vcruntime140_1.dll', 'msvcp140.dll', 'msvcp140_1.dll'))
-        import ctypes as _ct2
-        try:
-            _ct2.windll.kernel32.GetModuleHandleW.argtypes = [_ct2.c_wchar_p]
-            _ct2.windll.kernel32.GetModuleHandleW.restype = _ct2.c_void_p
-            _ct2.windll.kernel32.GetModuleFileNameW.argtypes = [_ct2.c_void_p, _ct2.c_wchar_p, _ct2.c_uint32]
-        except Exception:
-            pass
-        for _n in ('vcruntime140.dll', 'msvcp140.dll', 'onnxruntime.dll'):
-            _h = _ct2.windll.kernel32.GetModuleHandleW(_n)
-            if _h:
-                _buf = _ct2.create_unicode_buffer(1024)
-                _ct2.windll.kernel32.GetModuleFileNameW(_h, _buf, 1024)
-                _dbg0(f"after pin: {_n} handle=0x{_h:x} path={_buf.value}")
-            else:
-                _dbg0(f"after pin: {_n} NOT LOADED")
     _candidates = []
     if _mei:
         _candidates.append(_mei)
