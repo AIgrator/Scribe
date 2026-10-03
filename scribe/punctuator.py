@@ -95,7 +95,11 @@ def _is_proper_top(word, morph):
     if not parses:
         return False
     top = parses[0]
-    return top.score >= _PROPER_SCORE_MIN and any(t in top.tag for t in _PROPER_TAGS)
+    try:
+        tags = set(top.tag.grammemes)
+    except Exception:
+        return False
+    return top.score >= _PROPER_SCORE_MIN and bool(tags & _PROPER_TAGS)
 
 
 def _is_geo_head(word, morph):
@@ -107,7 +111,11 @@ def _is_geo_head(word, morph):
     if not parses:
         return False
     top = parses[0]
-    return top.score >= _PROPER_SCORE_MIN and "Geox" in top.tag
+    try:
+        tags = set(top.tag.grammemes)
+    except Exception:
+        return False
+    return top.score >= _PROPER_SCORE_MIN and "Geox" in tags
 
 
 class Punctuator:
@@ -120,6 +128,16 @@ class Punctuator:
         self._id2mark = None
         self._loaded = False
         self._load_attempted = False
+
+    @property
+    def confidence(self):
+        """Minimum mark probability, otherwise no mark (argmax-only when 0)."""
+        if self.settings_manager and hasattr(self.settings_manager, 'get'):
+            try:
+                return float(self.settings_manager.get('punct_confidence', 0.0) or 0.0)
+            except Exception:
+                return 0.0
+        return 0.0
 
     @property
     def enabled(self):
@@ -249,14 +267,33 @@ class Punctuator:
                 feed['token_type_ids'] = np.zeros_like(feed['input_ids'])
             logits = self._session.run(["logits"], feed)[0][0]
             style = getattr(self, '_style', 'after_each')
+            thr = getattr(self, 'confidence', 0.0) or 0.0
             out = []
             for i, w in enumerate(words):
                 idxs = [j for j, wi in enumerate(word_ids) if wi == i]
                 if not idxs:
                     out.append(w)
                     continue
-                pred_id = int(logits[idxs[-1]].argmax())
+                row = logits[idxs[-1]]
+                pred_id = int(row.argmax())
+                prob = 1.0
+                if thr > 0:
+                    e = np.exp(row - row.max())
+                    prob = float(e[pred_id] / e.sum())
+                if prob < thr:
+                    # Uncertain label: keep the word fully untouched (no mark,
+                    # no case change). Rules and dictionaries still apply later.
+                    out.append(w)
+                    continue
+                # A lonely case change (no mark, e.g. UPPER_O) needs higher
+                # confidence than a mark: it splits sentences by itself.
+                case_thr = max(thr, 0.75)
                 if style == 'this_word_case_total':
+                    lab = str(self._id2mark.get(pred_id, 'LOWER_O'))
+                    head, _, suffix = lab.partition('_')
+                    if suffix in ('', 'O') and head != 'LOWER' and prob < case_thr:
+                        out.append(w)
+                        continue
                     lab = str(self._id2mark.get(pred_id, 'LOWER_O'))
                     head, _, suffix = lab.partition('_')
                     if head == 'TOTAL':
@@ -265,9 +302,13 @@ class Punctuator:
                         ww = w[:1].upper() + w[1:] if w else w
                     else:
                         ww = w
-                    out.append(ww + self._marks.get(suffix, ""))
+                    mark = self._marks.get(suffix, "")
+                    out.append(ww + mark)
                 elif style == 'this_word_case':
                     lab = str(self._id2mark.get(pred_id, 'OO'))
+                    if lab[-1:] == 'U' and lab[:1] in ('O', '') and prob < max(thr, 0.75):
+                        out.append(w)
+                        continue
                     ww = w.capitalize() if lab[-1:] == 'U' else w
                     if lab[:1] not in ('O', ''):
                         ww += lab[0]
