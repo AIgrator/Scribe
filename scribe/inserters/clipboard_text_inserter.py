@@ -23,40 +23,13 @@ def _send_ctrl_v_win32(key_delay=0.02):
     """
     try:
         import ctypes
-        import ctypes.wintypes
-
+        user32 = ctypes.windll.user32
         VK_CONTROL = 0x11  # noqa: N806 (Win32 constant)
         VK_V = 0x56  # noqa: N806 (Win32 constant)
         KEYEVENTF_KEYUP = 0x0002  # noqa: N806 (Win32 constant)
-
-        class KEYBDINPUT(ctypes.Structure):
-            _fields_ = [("wVk", ctypes.wintypes.WORD),
-                        ("wScan", ctypes.wintypes.WORD),
-                        ("dwFlags", ctypes.wintypes.DWORD),
-                        ("time", ctypes.wintypes.DWORD),
-                        ("dwExtraInfo", ctypes.POINTER(ctypes.c_ulong))]
-
-        class INPUT(ctypes.Structure):
-            _fields_ = [("type", ctypes.wintypes.DWORD),
-                        ("ki", KEYBDINPUT)]
-
-        INPUT_KEYBOARD = 1  # noqa: N806 (Win32 constant)
-
-        def _key(vk, up=False):
-            ki = KEYBDINPUT(wVk=vk, wScan=0,
-                            dwFlags=KEYEVENTF_KEYUP if up else 0,
-                            time=0, dwExtraInfo=None)
-            return INPUT(type=INPUT_KEYBOARD, ki=ki)
-
-        SendInput = ctypes.windll.user32.SendInput  # noqa: N806 (Win32 API)
-        SendInput.argtypes = [ctypes.wintypes.UINT, ctypes.POINTER(INPUT), ctypes.c_int]
-        SendInput.restype = ctypes.wintypes.UINT
-
-        seq = [_key(VK_CONTROL, False), _key(VK_V, False),
-               _key(VK_V, True), _key(VK_CONTROL, True)]
-        for inp in seq:
-            if SendInput(1, ctypes.byref(inp), ctypes.sizeof(inp)) != 1:
-                return False
+        for vk, up in ((VK_CONTROL, False), (VK_V, False),
+                       (VK_V, True), (VK_CONTROL, True)):
+            user32.keybd_event(vk, 0, KEYEVENTF_KEYUP if up else 0, 0)
             time.sleep(key_delay)
         return True
     except Exception as e:
