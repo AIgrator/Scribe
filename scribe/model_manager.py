@@ -11,6 +11,7 @@ from PyQt5.QtWidgets import QCheckBox, QDialog, QHBoxLayout, QLabel, QListWidget
 from scribe.utils import resource_path
 
 VOSK_MODELS_JSON_URL = "https://raw.githubusercontent.com/AIgrator/VoskModels/refs/heads/main/vosk_models.json"
+PUNCT_MODELS_JSON_URL = "https://raw.githubusercontent.com/AIgrator/Scribe/main/punct_models.json"
 
 class ExtractThread(QThread):
     finished = pyqtSignal(str)
@@ -125,6 +126,114 @@ class ModelManager:
         if os.path.exists(model_path) and os.path.isdir(model_path):
             import shutil
             shutil.rmtree(model_path)
+
+def get_punct_dir(models_dir, lang):
+    """Local folder for a punctuation model: models/punct/<lang>/."""
+    return os.path.join(models_dir, 'punct', lang)
+
+
+def has_punct_model(models_dir, lang):
+    """True if a usable punctuation model is already downloaded."""
+    d = get_punct_dir(models_dir, lang)
+    has_onnx = os.path.exists(os.path.join(d, 'model.int8.onnx')) or os.path.exists(os.path.join(d, 'model.onnx'))
+    return has_onnx and os.path.exists(os.path.join(d, 'tokenizer.json'))
+
+
+def fetch_punct_catalog(timeout=15):
+    """Download the punctuation catalog (lang -> files). Raises on failure."""
+    response = requests.get(PUNCT_MODELS_JSON_URL, timeout=timeout)
+    response.raise_for_status()
+    return response.json()
+
+
+def download_punct_files(models_dir, lang, entry, texts, parent=None):
+    """Download catalog files into models/punct/<lang>/ with a progress dialog.
+
+    Returns True on success, False on error or user cancel (partial files removed).
+    Caller must run inside a Qt event loop.
+    """
+    from PyQt5.QtCore import QEventLoop
+    from PyQt5.QtWidgets import QProgressDialog
+    d = get_punct_dir(models_dir, lang)
+    os.makedirs(d, exist_ok=True)
+    title = texts.get('punct_download_title', 'Downloading punctuation model') if hasattr(texts, 'get') else 'Downloading punctuation model'
+    label = texts.get('punct_download_label', 'Punctuation model for language: {}').format(lang) if hasattr(texts, 'get') else f'Punctuation model: {lang}'
+    cancel_txt = texts.get('cancel', 'Cancel') if hasattr(texts, 'get') else 'Cancel'
+    dlg = QProgressDialog(label, cancel_txt, 0, 100, parent)
+    dlg.setWindowTitle(title)
+    dlg.setModal(True)
+    dlg.show()
+    state = {'cancelled': False}
+    dlg.canceled.connect(lambda: state.__setitem__('cancelled', True))
+    try:
+        for item in entry.get('files', []):
+            if state['cancelled']:
+                return False
+            dest = os.path.join(d, item['name'])
+            expected = int(item.get('size', 0) or 0)
+            if os.path.exists(dest) and expected and os.path.getsize(dest) == expected:
+                continue
+            loop = QEventLoop()
+            ok = {'value': False}
+
+            def _done(_path, _ok=ok, _loop=loop):
+                _ok['value'] = True
+                _loop.quit()
+
+            def _fail(_msg, _ok=ok, _loop=loop):
+                _ok['value'] = False
+                _loop.quit()
+
+            dlg.setLabelText(f"{label}\n{item['name']}")
+            dlg.setValue(0)
+            thread = DownloadThread(item['url'], dest)
+            thread.progress.connect(dlg.setValue)
+            thread.finished.connect(_done)
+            thread.error.connect(_fail)
+            thread.start()
+            loop.exec_()
+            thread.wait(5000)
+            if state['cancelled'] or not ok['value']:
+                try:
+                    if os.path.exists(dest):
+                        os.remove(dest)
+                except Exception:
+                    pass
+                return False
+        return True
+    finally:
+        dlg.close()
+
+
+def ensure_punctuation_model(models_dir, lang, texts, settings_manager=None, parent=None):
+    """Make sure a punctuation model exists for lang. Downloads it if needed.
+
+    - Skipped when punctuation is disabled in settings or no catalog entry exists
+      (rules-only fallback) or the download fails/offline.
+    - Returns True if a model is ready, False otherwise.
+    """
+    if not lang or lang == 'unknown':
+        return False
+    if settings_manager is not None:
+        try:
+            if not settings_manager.get('enable_punctuation', True):
+                return False
+        except Exception:
+            pass
+    if has_punct_model(models_dir, lang):
+        return True
+    try:
+        catalog = fetch_punct_catalog()
+    except Exception:
+        return False
+    entry = catalog.get(lang)
+    if not entry:
+        return False
+    try:
+        return download_punct_files(models_dir, lang, entry, texts, parent=parent)
+    except Exception:
+        return False
+
 
 class ModelDownloadDialog(QDialog):
     def __init__(self, models_json, lang_models, models_dir, texts, settings_manager=None, parent=None):
@@ -352,6 +461,13 @@ class ModelDownloadDialog(QDialog):
         self.progress.setValue(1)
         self.status_label.setText(self.texts['download_model_status_done'])
         self.status_label.setTextInteractionFlags(Qt.TextSelectableByMouse)
+        # Fetch the matching punctuation model right away (same language),
+        # so dictation gets punctuation without a second trip to settings.
+        try:
+            ensure_punctuation_model(self.models_dir, lang, self.texts,
+                                     settings_manager=self.settings_manager, parent=self)
+        except Exception:
+            pass
         self.accept()
 
     def on_extract_error(self, msg):
