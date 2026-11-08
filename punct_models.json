@@ -1,22 +1,22 @@
 {
   "_comment": "Punctuation model catalog for Scribe. Downloaded on demand into models/punct/<lang>/. Local names must match what scribe/punctuator.py expects.",
   "ru": {
-    "source": "AIgrator/scribe-punct-ru (mirror of ekhodzitsky/rupunct-small-onnx, MIT)",
+    "source": "AIgrator/scribe-punct-ru (RUPunct_big int8, MIT; base RUPunct/RUPunct_big)",
     "files": [
       {
-        "url": "https://huggingface.co/AIgrator/scribe-punct-ru/resolve/main/rupunct_small_int8.onnx",
+        "url": "https://huggingface.co/AIgrator/scribe-punct-ru/resolve/main/rupunct_big_int8.onnx",
         "name": "model.int8.onnx",
-        "size": 29259673
+        "size": 178530799
       },
       {
-        "url": "https://huggingface.co/AIgrator/scribe-punct-ru/resolve/main/tokenizer.json",
+        "url": "https://huggingface.co/AIgrator/scribe-punct-ru/resolve/main/rupunct_big_tokenizer.json",
         "name": "tokenizer.json",
-        "size": 2413439
+        "size": 3714603
       },
       {
-        "url": "https://huggingface.co/AIgrator/scribe-punct-ru/resolve/main/model.json",
+        "url": "https://huggingface.co/AIgrator/scribe-punct-ru/resolve/main/rupunct_big_model.json",
         "name": "model.json",
-        "size": 1285
+        "size": 1310
       }
     ]
   },
