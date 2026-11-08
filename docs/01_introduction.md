@@ -19,5 +19,5 @@ For speech recognition, Scribe uses models from the [Vosk project](https://alpha
 ### Important Information
 
 *   **Price and Source Code:** Scribe is a completely free, open-source project. You can review the code and even compile the program yourself.
-*   **Compatibility:** The program is compatible with **Windows 7 and newer versions**, bringing modern voice control functionality to older operating systems.
+*   **Compatibility:** The program is compatible with **Windows 10 (64-bit) and newer**. Windows 7 is no longer supported starting with version 1.3.0: offline punctuation and capitalization rely on ONNX Runtime, which requires Windows 10 or later. The last release that runs on Windows 7 is **v1.2.0** (without punctuation support).
 *   **Antivirus Warnings (False Positives):** Some antivirus programs may flag Scribe as malicious software (malware). This is a false positive triggered by the application's core features: emulating keystrokes to type text in other windows and launching programs based on user commands. Since Scribe's source code is fully open, anyone can verify its safety.

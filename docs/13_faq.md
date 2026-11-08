@@ -1,7 +1,10 @@
 # Section 13: Troubleshooting and FAQ
 
 **Q: The program won't start or closes immediately.**
-**A:** Make sure your antivirus software is not blocking Scribe. Try adding the program's folder to your antivirus exclusion list.
+**A:** Make sure your antivirus software is not blocking Scribe. Try adding the program's folder to your antivirus exclusion list. If the error mentions `KERNEL32.dll` or `GetSystemTimePreciseAsFileTime`, your Windows version is too old — see the next question.
+
+**Q: Does Scribe work on Windows 7?**
+**A:** No. Version 1.3.0 and later require **Windows 10 (64-bit) or newer**: offline punctuation and capitalization use ONNX Runtime, which no longer supports Windows 7 or 8.1. The last release that runs on Windows 7 is [v1.2.0](https://github.com/AIgrator/Scribe/releases/tag/v1.2.0) — it works there, but it has no punctuation and capitalization. Current development targets Windows 10 and newer.
 
 **Q: I'm speaking, but nothing is being typed.**
 **A:** Check a few things:

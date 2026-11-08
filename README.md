@@ -35,7 +35,7 @@ The feature is controlled by **Enable punctuation and capitalization** on the **
 
 ### Prerequisites
 
-*   Windows 7 (64-bit) or newer.
+*   Windows 10 (64-bit) or newer. Windows 7 is not supported by version 1.3.0 and later; see [Troubleshooting and FAQ](docs/13_faq.md).
 *   Linux support (version 1.2.0 and later) with X11 graphical interface. Wayland is not currently supported.
 
 ### Installation

@@ -4,7 +4,7 @@ These steps will guide you through compiling a working `Scribe.exe` application 
 
 ### 1. Prerequisites
 
-*   **Python:** Ensure you have Python 3.8 or newer installed. You can download it from the [official website](https://www.python.org/).
+*   **Python:** Ensure you have Python 3.10 or newer installed. You can download it from the [official website](https://www.python.org/).
 *   **Git:** Required to clone the repository. You can download it from the [official website](https://git-scm.com/).
 
 **For Ubuntu/Debian users:**
