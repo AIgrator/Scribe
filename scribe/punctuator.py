@@ -4,8 +4,10 @@
 Pipeline (runs ONLY on final text, never on partials):
   1. neural punctuation, ONNX int8 (optional, Russian default) — marks ? ! . , : ...
   2. duplicate-punctuation cleanup (e.g. ".." -> ".", keeps "...")
-  3. sentence-start capitalization (rules, stateful across finals)
-  4. proper-noun capitalization via pymorphy2 (optional, Russian, works on lowercase)
+  3. soft ASR chunk boundaries: drop the terminal period the model adds to
+     every final and keep the first word lowercase on a continuation
+  4. sentence-start capitalization (rules, stateful across finals)
+  5. proper-noun capitalization via pymorphy2 (optional, Russian, works on lowercase)
 
 All heavy dependencies (onnxruntime, tokenizers, pymorphy2) are optional imports.
 If the model or a library is missing, the module gracefully degrades to rules only,
@@ -26,8 +28,10 @@ _PROPER_SCORE_MIN = 0.5
 
 _morphs = {}
 
-# Languages where a word after a comma must stay lowercase (proper nouns excepted).
+# Languages where a word after a comma/colon/semicolon/dash must stay lowercase
+# (proper nouns excepted). Russian typography: these marks do not start sentences.
 _COMMA_LOWER_LANGS = ('ru', 'uk')
+_LOWER_AFTER_RE = r'[,:;—]'
 _WORD_RE = r'A-Za-zА-Яа-яЁёІіЇїЄєҐґ'
 
 
@@ -439,32 +443,33 @@ class Punctuator:
         return False
 
     def lowercase_after_comma_text(self, text):
-        """Force lowercase right after a comma (ru/uk rule), except proper nouns.
+        """Force lowercase right after comma/colon/semicolon/dash (ru/uk rule).
 
-        Safety net: no caps source should uppercase here (commas never start
-        sentences), but cross-final state or voice commands can leak one through.
+        Safety net: no caps source should uppercase here (these marks never start
+        a sentence), but the model or cross-final state can leak one through.
+        Proper nouns are kept as-is.
         """
         if self.lang not in _COMMA_LOWER_LANGS or not text:
             return text
 
         def _fix(m):
-            pre, word = m.group(1), m.group(2)
+            mark, pre, word = m.group(1), m.group(2), m.group(3)
             if not word[:1].isupper() or self._looks_proper(word):
                 return m.group(0)
-            return pre + word[0].lower() + word[1:]
+            return mark + pre + word[0].lower() + word[1:]
 
-        return re.sub(r',(\s+)([' + _WORD_RE + r']+)', _fix, text)
+        return re.sub(r'([,:;—])(\s+)([' + _WORD_RE + r']+)', _fix, text)
 
     def lowercase_after_comma_actions(self, actions):
         """Same as above for the action stream.
 
-        Comma and word may sit in different fragments; keys in between
-        are handled.
+        A mark and the following word may sit in different fragments; keys in
+        between are handled.
         """
         if self.lang not in _COMMA_LOWER_LANGS:
             return actions
         out = [dict(a) for a in actions]
-        carry = False  # previous stream chunk ended with a comma
+        carry = False  # previous stream chunk ended with a lowering mark
         for act in out:
             if act.get('type') == 'key':
                 if act.get('value') in ('Enter', 'Backspace'):
@@ -476,13 +481,54 @@ class Punctuator:
                 if m and m.group(2)[:1].isupper() and not self._looks_proper(m.group(2)):
                     w = m.group(2)
                     v = m.group(1) + w[0].lower() + w[1:] + v[m.end():]
-            carry = bool(re.search(r',\s*$', v))
+            carry = bool(re.search(_LOWER_AFTER_RE + r'\s*$', v))
             act['value'] = v
         return out
+
+    @staticmethod
+    def strip_chunk_period(text):
+        """Drop the sentence-final period the neural model adds at an ASR boundary.
+
+        Vosk finalizes on a short pause, which is not necessarily the end of a
+        sentence. The model sees every final as a complete input and appends a
+        terminal period, so every thinking pause used to split the text. Keep
+        '...', '?', '!' and internal marks untouched.
+        """
+        if not text:
+            return text
+        return re.sub(r'(?<!\.)\.\s*$', '', text)
+
+    def lowercase_chunk_start(self, text):
+        """Undo the model's start-of-sequence uppercase on a continuing final.
+
+        Neural models capitalize the first token of any input. When the previous
+        final did not really end a sentence, that capital is wrong. Proper nouns
+        (ru/uk) are restored by capitalize_proper afterwards; English "I" and
+        all-caps tokens are kept as-is.
+        """
+        if not text:
+            return text
+        m = re.match(r'^([^' + _WORD_RE + r']*)([' + _WORD_RE + r']+)', text)
+        if not m:
+            return text
+        pre, word = m.group(1), m.group(2)
+        if not word[:1].isupper():
+            return text
+        if len(word) > 1 and word.isupper():
+            return text  # acronym or TOTAL case from the model
+        if self.lang == 'en' and (word == 'I' or word.startswith("I'")):
+            return text
+        if self._looks_proper(word):
+            return text
+        return pre + word[0].lower() + word[1:] + text[m.end():]
 
     def process(self, text, sentence_start=True):
         """Full pipeline for one final chunk. Returns (text, next_sentence_start).
 
+        Chunk boundaries are treated as soft: a model-made terminal period is
+        removed and a continuation keeps its first word lowercase. Only real
+        sentence ends (? ! ... or explicit voice commands/Enter) start a new
+        sentence with a capital letter.
         When disabled, returns the text fully untouched (pure Vosk behavior).
         """
         if not text or not text.strip():
@@ -492,6 +538,9 @@ class Punctuator:
         if self.enabled:
             text = self.punctuate_neural(text)
             text = self.cleanup_dupes(text)
+            text = self.strip_chunk_period(text)
+            if not sentence_start:
+                text = self.lowercase_chunk_start(text)
             text = self.capitalize_proper(text, self.lang)
         text, next_start = self.capitalize_sentences(text, sentence_start)
         text = self.lowercase_after_comma_text(text)
@@ -525,10 +574,10 @@ class Punctuator:
                 elif ch in '.!?':
                     upper_next = True
             new_actions.append({'type': 'text', 'value': "".join(chars)})
-        # Next state from the tail of the whole stream: a sentence-final mark
-        # means the next chunk starts a new sentence.
-        tail = "".join(a.get('value', '') for a in new_actions if a.get('type') == 'text').rstrip()
-        next_start = tail.endswith(_SENTENCE_END)
+        # Next state comes from the whole stream, including keys: a sentence-final
+        # mark OR an Enter at the end starts a new sentence. (The old text-tail
+        # check missed finals that end with a line-break command.)
+        next_start = upper_next
         new_actions = self.strip_punct_around_breaks(new_actions)
         new_actions = self.lowercase_after_comma_actions(new_actions)
         return new_actions, next_start

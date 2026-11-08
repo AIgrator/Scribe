@@ -422,12 +422,18 @@ class VoskRecognizer(QObject):
 
         Calls the user final_handler if set. Handles text insertion unless in command mode.
         """
+        # Sentence-start state for THIS final (before it is updated to the next one).
+        # Needed by both passes: using the updated state in capitalize_actions
+        # would capitalize the first word of the current final just because the
+        # final itself ends with . ? or !.
+        sentence_start = getattr(self, '_punct_sentence_start', True)
+
         # 1. Neural punctuation + capitalization (final only, never partials).
         # Runs before voice-command replacements so the model sees pure ASR output.
         try:
             if getattr(self, 'punctuator', None) is not None:
                 final_text, self._punct_sentence_start = self.punctuator.process(
-                    final_text, getattr(self, '_punct_sentence_start', True))
+                    final_text, sentence_start)
         except Exception as e:
             logger.warning(f"[Punctuator] pass failed, using raw final text: {e}")
 
@@ -439,7 +445,7 @@ class VoskRecognizer(QObject):
             try:
                 if getattr(self, 'punctuator', None) is not None:
                     actions, self._punct_sentence_start = self.punctuator.capitalize_actions(
-                        actions, getattr(self, '_punct_sentence_start', True))
+                        actions, sentence_start)
             except Exception as e:
                 logger.warning(f"[Punctuator] caps-after-replacements failed: {e}")
             # For file writing and callback, collect a string without special commands
