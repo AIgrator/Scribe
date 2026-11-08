@@ -6,7 +6,7 @@ Scribe is your free personal assistant for Windows that transforms your voice in
 
 ### Key Features:
 
-*   **Speech-to-Text:** Dictate text in real-time in any text field, with smart auto-replacement for punctuation and frequently used phrases.
+*   **Speech-to-Text:** Dictate text in real-time in any text field, with automatic offline punctuation and capitalization for Russian and English, plus smart auto-replacement for frequently used phrases.
 *   **Voice Control:** Launch programs, open files, and emulate keyboard shortcuts using custom voice commands.
 *   **CPU Optimized:** The program efficiently uses your processor's resources, running quickly without slowing down your system.
 *   **Fully Customizable:** Configure hotkeys, performance, text input methods, and the application's appearance, including light and dark themes. Scribe is designed to provide maximum control and customization, allowing you to tailor it to your specific needs.

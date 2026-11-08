@@ -17,3 +17,4 @@ This documentation will help you understand, configure, and master all the featu
 11. [Settings: Vosk Models](./11_settings_vosk_models.md)
 12. [Settings: Main Window](./12_settings_main_window.md)
 13. [Troubleshooting and FAQ](./13_faq.md)
+14. [Punctuation and Capitalization](./14_punctuation.md)
