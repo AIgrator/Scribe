@@ -17,6 +17,7 @@ Scribe is a versatile tool designed to integrate voice commands and transcriptio
 *   **Customizable Hotkeys:** Configure global hotkeys to start/stop modes and switch between active models.
 *   **Text Replacements:** Define custom words or phrases that automatically expand into longer text snippets (e.g., "my email" -> "my.address@example.com").
 *   **Voice-Activated Program Launch:** Set up voice commands to open any application or file on your computer.
+*   **Optional Autostart:** Start Scribe automatically when you sign in; the checkbox in **Settings → System** reflects and changes the real system state.
 *   **Flexible Configuration:** Fine-tune input methods (keyboard typing vs. clipboard paste), tray icon appearance, and window behavior to match your preferences.
 
 ## Punctuation and Capitalization

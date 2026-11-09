@@ -9,7 +9,7 @@ This documentation will help you understand, configure, and master all the featu
 3.  [The Main Window](./03_main_window.md)
 4.  [Tray Control](./04_tray_control.md)
 5.  [Settings: Hotkeys](./05_settings_hotkeys.md)
-6.  [Settings: General](./06_settings_general.md)
+6.  [Settings: General and System](./06_settings_general.md)
 7.  [Settings: Input](./07_settings_input.md)
 8.  [Settings: Replacements](./08_settings_replacements.md)
 9.  [Settings: Voice Hotkeys](./09_settings_voice_hotkeys.md)

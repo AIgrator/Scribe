@@ -45,5 +45,8 @@ The same folder holds `models/`, `records/`, `cache/` and `app.log`. At every st
 **Q: How do I uninstall the program?**
 **A:** If you used the installer, open **Settings → Apps → Installed apps**, find Scribe and choose **Uninstall**. The uninstaller removes the program and the `%LOCALAPPDATA%\Scribe` data folder; it offers to keep the downloaded voice models (1–2 GB) for a future reinstall. The portable build has no uninstaller: just delete its folder.
 
+**Q: How do I stop Scribe from starting automatically?**
+**A:** Open **Settings → System** and clear **Start Scribe when I sign in**. The installer may have added the same startup entry, so the checkbox reads and writes the real operating-system state. No restart is needed.
+
 **Q: I found a bug or have a suggestion.**
 **A:** Great! Please report it to the developer to help make the program even better.

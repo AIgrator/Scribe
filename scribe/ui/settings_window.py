@@ -11,6 +11,7 @@ from .hotkeys_page import HotkeysPageWidget
 from .input_settings_page import InputSettingsPageWidget
 from .main_settings_page import MainSettingsPageWidget
 from .replacements_page import ReplacementsPage
+from .system_settings_page import SystemSettingsPageWidget
 from .voice_hotkeys_page import VoiceHotkeysPage
 from .voice_openfile_page import VoiceOpenfilePage
 from .vosk_models_page import VoskModelsPageWidget
@@ -40,6 +41,7 @@ class SettingsWindow(QDialog):
         self.main_hbox.addWidget(self.pages_stack)
 
         self.main_page = MainSettingsPageWidget(self.tray_app, self.texts, self.settings_manager)
+        self.system_page = SystemSettingsPageWidget(self.texts, self.settings_manager)
         self.input_page = InputSettingsPageWidget(self.texts, self.settings_manager)
         self.hotkeys_page = HotkeysPageWidget(self.texts, self.settings.get('modes', {}), settings_manager=self.settings_manager)
         self.replacements_page = ReplacementsPage(texts=self.texts, settings_manager=self.settings_manager)
@@ -54,6 +56,7 @@ class SettingsWindow(QDialog):
         self.help_map = {
             self.hotkeys_page: "05_settings_hotkeys",
             self.main_page: "06_settings_general",
+            self.system_page: "06_settings_general",
             self.input_page: "07_settings_input",
             self.replacements_page: "08_settings_replacements",
             self.voice_hotkeys_page: "09_settings_voice_hotkeys",
@@ -64,6 +67,7 @@ class SettingsWindow(QDialog):
 
         self.add_category(self.texts.get('settings_hotkeys', 'Hotkeys'), self.hotkeys_page)
         self.add_category(self.texts.get('settings_main', 'General Settings'), self.main_page)
+        self.add_category(self.texts.get('settings_system', 'System'), self.system_page)
         self.add_category(self.texts.get('settings_input', 'Input Settings'), self.input_page)
         self.add_category(self.texts.get('settings_replacements', 'Replacements'), self.replacements_page)
         self.add_category(self.texts.get('voice_hotkeys_title', 'Voice Hotkeys'), self.voice_hotkeys_page)
@@ -134,8 +138,8 @@ class SettingsWindow(QDialog):
             'inserter_type': self.input_page.get_inserter_type(),
             'keyboard_settings': self.input_page.get_keyboard_settings(),
             'clipboard_settings': self.input_page.get_clipboard_settings(),
-            'ui_language': self.main_page.get_ui_language(),
-            'transcribe_to_file': self.main_page.get_transcribe_to_file(),
+            'ui_language': self.system_page.get_ui_language(),
+            'transcribe_to_file': self.system_page.get_transcribe_to_file(),
         }
         # Get settings from all pages and merge them
         update_dict.update(self.replacements_page.get_settings())

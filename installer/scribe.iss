@@ -195,6 +195,21 @@ begin
   Result := AskKeepModels();
 end;
 
+procedure RemoveAutostartEntry();
+var
+  Value: string;
+begin
+  { The startup task may not have been selected during setup, but the user can
+    still enable autostart from Settings. Remove only our own exe path so a
+    different Scribe installation is not affected. }
+  if RegQueryStringValue(HKCU, 'Software\Microsoft\Windows\CurrentVersion\Run',
+                         'Scribe', Value) then
+  begin
+    if Pos(Lowercase(ExpandConstant('{app}')), Lowercase(Value)) > 0 then
+      RegDeleteValue(HKCU, 'Software\Microsoft\Windows\CurrentVersion\Run', 'Scribe');
+  end;
+end;
+
 procedure DeleteDataDir();
 var
   FindRec: TFindRec;
@@ -231,5 +246,8 @@ end;
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 begin
   if CurUninstallStep = usUninstall then
+  begin
+    RemoveAutostartEntry();
     DeleteDataDir();
+  end;
 end;
