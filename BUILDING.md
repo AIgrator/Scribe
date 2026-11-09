@@ -54,6 +54,21 @@ This command will run PyInstaller and build `Scribe.exe`.
 python -m PyInstaller scribe.spec
 ```
 
-### 6. Result
+### 6. Build the Installer (Windows only)
 
-The final `Scribe.exe` file will be located in the `dist` folder.
+The installer is built with [Inno Setup 6](https://jrsoftware.org/isinfo.php). Install it first, then compile the script:
+
+```powershell
+& "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe" installer\scribe.iss
+```
+
+The version shown by the installer and in Windows is read from `dist\Scribe.exe`, which takes it from `file_version_info.txt`; update that file before a release.
+
+### 7. Result
+
+The build produces these artifacts in the `dist` folder:
+
+*   `dist\Scribe.exe` — standalone/portable executable (add an empty `portable.flag` next to it to keep all data in the same folder);
+*   `dist\ScribeSetup.exe` — per-user installer (no administrator rights, installs to `%LOCALAPPDATA%\Programs\Scribe`, data in `%LOCALAPPDATA%\Scribe`).
+
+For a portable release, put `Scribe.exe`, `LICENSE` and an empty `portable.flag` into a folder and zip it as `dist\Scribe-portable.zip`.

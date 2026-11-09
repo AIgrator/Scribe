@@ -25,6 +25,8 @@ from PyQt5.QtWidgets import (
     QWidget,
 )
 
+from scribe.utils import get_data_dir
+
 from .busy_dialog import BusyDialog
 from .table_settings import TableSettings
 
@@ -48,12 +50,11 @@ class ScanWorker(QObject):
 
 
 class AppSelectionDialog(QDialog):
-    CACHE_DIR = "cache"
-    CACHE_FILE = os.path.join(CACHE_DIR, "apps_cache.json")
-
     def __init__(self, parent=None, texts=None):
         super().__init__(parent)
         self.texts = texts
+        self.cache_dir = os.path.join(get_data_dir(), "cache")
+        self.cache_file = os.path.join(self.cache_dir, "apps_cache.json")
         self.setWindowTitle("Select Application")
         self.setMinimumSize(450, 400)
 
@@ -77,7 +78,7 @@ class AppSelectionDialog(QDialog):
         self.load_apps()
 
     def load_apps(self):
-        if os.path.exists(self.CACHE_FILE):
+        if os.path.exists(self.cache_file):
             self.load_from_cache()
         else:
             self.scan_and_cache_apps()
@@ -85,7 +86,7 @@ class AppSelectionDialog(QDialog):
     def load_from_cache(self):
         self.list_widget.clear()
         try:
-            with open(self.CACHE_FILE, 'r', encoding='utf-8') as f:
+            with open(self.cache_file, 'r', encoding='utf-8') as f:
                 apps = json.load(f)
 
             if not apps:
@@ -130,8 +131,8 @@ class AppSelectionDialog(QDialog):
 
         try:
             apps_data = result
-            os.makedirs(self.CACHE_DIR, exist_ok=True)
-            with open(self.CACHE_FILE, 'w', encoding='utf-8') as f:
+            os.makedirs(self.cache_dir, exist_ok=True)
+            with open(self.cache_file, 'w', encoding='utf-8') as f:
                 json.dump(apps_data, f, indent=4, ensure_ascii=False)
 
             self.load_from_cache()

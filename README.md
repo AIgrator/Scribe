@@ -27,7 +27,7 @@ Scribe can punctuate dictation on its own: marks and capital letters are added t
 *   **Other languages** get rule-based sentence capitalization: the first word of a sentence is capitalized after `. ! ? ...`.
 *   **Pauses are not sentence ends.** Vosk commits text on short pauses; Scribe treats those boundaries as soft and does not insert a period or start a new sentence there. A sentence really ends with `?`, `!`, `...`, an explicit Enter, or a spoken sentence-ending mark.
 *   **Lowercase after `,` `:` `;` `—`** for Russian and Ukrainian, while proper nouns keep their capitals.
-*   Models download automatically on first run into `models/punct/<language>/` and are never bundled into the executable. If the model is missing or you are offline, Scribe falls back to basic capitalization rules.
+*   Models download automatically on first run into `models/punct/<language>/` inside the data folder (`%LOCALAPPDATA%\Scribe` for an installed build, the program folder in portable mode) and are never bundled into the executable. If the model is missing or you are offline, Scribe falls back to basic capitalization rules.
 
 The feature is controlled by **Enable punctuation and capitalization** on the **Models** settings page. It is on by default; turn it off to get raw Vosk output. See the [punctuation guide](docs/14_punctuation.md) for details, voice punctuation commands, and troubleshooting.
 
@@ -40,9 +40,20 @@ The feature is controlled by **Enable punctuation and capitalization** on the **
 
 ### Installation
 
+**Installer (recommended):**
+
 1.  Go to the [**Releases**](https://github.com/AIgrator/Scribe/releases) page.
-2.  Download the latest `scribe-x64.exe` file from the "Assets" section.
-3.  Run the executable. No installation is required.
+2.  Download `ScribeSetup.exe` from the "Assets" section.
+3.  Run it. Scribe installs per user (no administrator rights) into `%LOCALAPPDATA%\Programs\Scribe` and adds a Start Menu shortcut.
+
+Settings, downloaded models and records are kept in `%LOCALAPPDATA%\Scribe`, so the program folder stays read-only for normal users. The uninstaller removes that folder; it can keep the downloaded voice models if you tick the box.
+
+**Portable:**
+
+1.  Download `Scribe-portable.zip` and unpack it into any folder (or download `Scribe.exe` and create an empty file named `portable.flag` next to it).
+2.  Run `Scribe.exe`. All data (settings, models, records, logs) stays in that folder.
+
+Without `portable.flag` the standalone executable also works, but keeps its data in `%LOCALAPPDATA%\Scribe`, exactly like the installed build.
 
 ## Building from Source
 

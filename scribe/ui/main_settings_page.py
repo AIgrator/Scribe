@@ -250,8 +250,10 @@ class MainSettingsPageWidget(QWidget):
     def open_records_folder(self):
         import os
         import subprocess
-        base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        records_dir = os.path.join(base_dir, 'records')
+
+        from scribe.utils import get_data_dir
+
+        records_dir = os.path.join(get_data_dir(), 'records')
         if not os.path.exists(records_dir):
             os.makedirs(records_dir, exist_ok=True)
         # Open folder in Explorer (Windows)

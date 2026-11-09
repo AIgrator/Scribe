@@ -33,6 +33,7 @@ Thumbs.db
 
 # User-specific files (should not be in repo)
 settings.json
+portable.flag
 .env
 
 # Folders with generated or large content

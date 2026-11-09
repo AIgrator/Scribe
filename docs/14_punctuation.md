@@ -82,7 +82,7 @@ Spoken marks take priority over the automatic ones: if the model already added a
 
 ### Model Files
 
-Punctuation models live in the `models/punct/` folder next to the program:
+Punctuation models live in the `models/punct/` folder inside the data folder (`%LOCALAPPDATA%\Scribe` for an installed build, next to the executable in portable mode):
 
 ```
 models/
@@ -102,11 +102,11 @@ models/
 *   The catalog of downloadable files is [`punct_models.json`](https://github.com/AIgrator/Scribe/blob/main/punct_models.json).
 *   If the download fails or you are offline, Scribe continues to work in rules-only mode: sentence capitalization still works, but automatic commas and question marks are not added.
 
-To force a fresh download of a model, close Scribe, delete its folder (for example `models/punct/ru`), and start the program again.
+To force a fresh download of a model, close Scribe, delete its folder in the data folder (for example `%LOCALAPPDATA%\Scribe\models\punct\ru`), and start the program again.
 
 ### Advanced Settings
 
-The feature has no extra controls in the interface, but a few values can be changed in `settings.json`:
+The feature has no extra controls in the interface, but a few values can be changed in `settings.json` (in the data folder: `%LOCALAPPDATA%\Scribe\settings.json` for an installed build, next to the executable in portable mode):
 
 | Key | Default | Meaning |
 | --- | --- | --- |
@@ -115,12 +115,12 @@ The feature has no extra controls in the interface, but a few values can be chan
 | `punct_context_words` | `30` | How many previous words are fed to the model as context |
 | `punctuation_model_dir` | `""` | Custom model folder; empty means `models/punct/<language>` |
 
-Close Scribe before editing the file. Delete `settings.json` to return to the defaults.
+Close Scribe before editing the file. Delete `settings.json` from the data folder to return to the defaults.
 
 ### Troubleshooting
 
 **No punctuation appears.**
-Check that **Enable punctuation and capitalization** is on, and that the correct recognition language is selected. For Russian and English, make sure the model folder exists in `models/punct/` and is not empty; if not, restart Scribe while online.
+Check that **Enable punctuation and capitalization** is on, and that the correct recognition language is selected. For Russian and English, make sure the model folder exists in `models/punct/` inside the data folder and is not empty; if not, restart Scribe while online.
 
 **Marks appear, but too rarely or too often.**
 Adjust `punct_confidence` in `settings.json`: a higher value (for example `0.6`) removes uncertain marks, a lower value (`0.3`) adds more.

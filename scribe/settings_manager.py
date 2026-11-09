@@ -1,4 +1,5 @@
 # settings_manager.py
+import copy
 import json
 import locale
 import logging
@@ -75,15 +76,34 @@ class SettingsManager(QObject):
 
     @staticmethod
     def write(settings_dict, settings_file):
-        """Write the settings dictionary to the settings_file with error handling."""
+        """Write the settings dictionary to the settings_file with error handling.
+
+        The write goes through a temporary file and os.replace, so a crash or a
+        full disk never leaves a truncated settings.json behind.
+        """
+        settings_file = os.path.abspath(settings_file)
+        tmp_file = settings_file + '.tmp'
         try:
-            with open(settings_file, 'w', encoding='utf-8') as f:
+            parent = os.path.dirname(settings_file)
+            if parent:
+                os.makedirs(parent, exist_ok=True)
+            with open(tmp_file, 'w', encoding='utf-8') as f:
                 json.dump(settings_dict, f, ensure_ascii=False, indent=2)
+                f.flush()
+                os.fsync(f.fileno())
+            os.replace(tmp_file, settings_file)
         except Exception as e:
             logger.error(f"Failed to write settings to {settings_file}: {e}")
+            try:
+                if os.path.exists(tmp_file):
+                    os.remove(tmp_file)
+            except OSError:
+                pass
+
     @staticmethod
     def create_default_settings_if_needed(settings_file='settings.json', lang_dict=None):
         """If settings.json does not exist, create it with ui_language determined by system language or 'en'."""
+        settings_file = os.path.abspath(settings_file)
         if os.path.exists(settings_file):
             return
         sys_lang = None
@@ -99,12 +119,13 @@ class SettingsManager(QObject):
             ui_language = sys_lang
         else:
             ui_language = 'en'
+        logger.info(f"Creating default settings file: {settings_file}")
         SettingsManager.write({"ui_language": ui_language}, settings_file)
 
 
     def __init__(self, settings_file='settings.json'):
         super().__init__()
-        self.SETTINGS_FILE = settings_file
+        self.SETTINGS_FILE = os.path.abspath(settings_file)
         self._settings = self._load_settings()
 
     def _load_settings(self):
@@ -132,8 +153,12 @@ class SettingsManager(QObject):
                         if sub_k not in data.get(k, {}):
                             data[k][sub_k] = sub_v
             return data
-        except Exception:
-            return self.DEFAULTS.copy()
+        except FileNotFoundError:
+            logger.warning(f"Settings file not found: {self.SETTINGS_FILE}; using defaults.")
+            return copy.deepcopy(self.DEFAULTS)
+        except Exception as e:
+            logger.error(f"Failed to load settings from {self.SETTINGS_FILE}: {e}; using defaults.")
+            return copy.deepcopy(self.DEFAULTS)
 
     def get(self, key, default=None):
         return self._settings.get(key, default)

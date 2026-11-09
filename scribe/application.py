@@ -14,7 +14,7 @@ from scribe.tray_app import TrayApp
 from scribe.ui.busy_dialog import BusyDialog
 from scribe.ui.main_voice_window import MainVoiceWindow
 from scribe.ui.settings_window import SettingsWindow
-from scribe.utils import get_specific_model_path
+from scribe.utils import get_models_path, get_specific_model_path
 
 logger = logging.getLogger(__name__)
 
@@ -54,8 +54,7 @@ class Application(QObject):
         self.settings_window_was_visible_before_reload = False
         self.is_loading_model = False
 
-        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        models_dir = os.path.join(base_dir, "models")
+        models_dir = get_models_path()
         self.model_manager = ModelManager(models_dir)
         self.inserter_type = self.settings.get('inserter_type', self.settings_manager.DEFAULTS['inserter_type'])
 

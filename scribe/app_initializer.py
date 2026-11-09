@@ -21,7 +21,7 @@ def initialize_app(settings_path, models_dir, lang=None):
     supported_lang_list = TranslationManager.get_supported_languages()
     supported_languages = {lang_code: {} for lang_code in supported_lang_list}
     SettingsManager.create_default_settings_if_needed(settings_path, supported_languages)
-    settings_manager = SettingsManager()
+    settings_manager = SettingsManager(settings_path)
     settings = settings_manager.all()
     sys_lang = None
     try:

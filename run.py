@@ -1,4 +1,5 @@
 """Entry point for development: launches the main Scribe application."""
+import logging
 import os
 import sys
 
@@ -83,7 +84,7 @@ from scribe.app_initializer import initialize_app
 from scribe.application import Application
 from scribe.logging_config import setup_logging
 from scribe.ui.styles import DEFAULT_APP_STYLE
-from scribe.utils import get_app_data_path, get_models_path
+from scribe.utils import get_data_dir, get_models_path, migrate_data_dir, resource_path
 
 if __name__ == '__main__':
     # Set AppUserModelID for correct icon display in the Windows taskbar
@@ -94,13 +95,18 @@ if __name__ == '__main__':
 
     # Create QApplication before any Qt widgets!
     qt_app = QApplication(sys.argv)
-    qt_app.setWindowIcon(QIcon('resources/icon.ico'))
+    qt_app.setWindowIcon(QIcon(resource_path('resources/icon.ico')))
 
     # Load and apply global styles
     qt_app.setStyleSheet(DEFAULT_APP_STYLE)
     # Centralized initialization: settings, language, translations, model path, etc.
-    app_data_path = get_app_data_path()
-    settings_path = os.path.join(app_data_path, 'settings.json')
+    # All mutable data lives in one absolute directory (see get_data_dir):
+    # %LOCALAPPDATA%\Scribe for an installed build, the exe folder when
+    # portable.flag is present, the repository root when running from source.
+    # Migration from older layouts runs once, before anything creates models/.
+    data_dir = get_data_dir()
+    migrated = migrate_data_dir(data_dir)
+    settings_path = os.path.join(data_dir, 'settings.json')
     models_dir = get_models_path()
     settings_manager, settings, ui_lang, texts, recognition_language, model_path = initialize_app(settings_path, models_dir)
     # Ensure the punctuation model for the recognition language is present
@@ -111,11 +117,27 @@ if __name__ == '__main__':
         ensure_punctuation_model(models_dir, recognition_language, texts, settings_manager)
     except Exception:
         pass
-    # Setup logging with log_to_file and log_level parameters from settings
+    # Setup logging with log_to_file and log_level parameters from settings.
+    # The log lives in the data dir, so it never depends on the CWD.
     setup_logging(
         log_to_file=settings.get('log_to_file', False),
+        log_file_path=os.path.join(data_dir, 'app.log'),
         log_level=settings.get('log_level', 'INFO')
     )
+    logger = logging.getLogger(__name__)
+    logger.info(f"Data dir: {data_dir}")
+    for entry in migrated:
+        logger.info(f"Migrated {entry}")
+    # Even with file logging off, leave the resolved path in app.log: it is the
+    # first thing needed to diagnose "where did my settings go".
+    if not settings.get('log_to_file', False):
+        try:
+            with open(os.path.join(data_dir, 'app.log'), 'a', encoding='utf-8') as f:
+                f.write(f"[INFO] Data dir: {data_dir}\n")
+                for entry in migrated:
+                    f.write(f"[INFO] Migrated {entry}\n")
+        except OSError:
+            pass
     # Create and run the main application object
     app = Application(settings_manager, settings, ui_lang, texts, recognition_language, model_path)
     app.run()

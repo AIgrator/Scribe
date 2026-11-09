@@ -1,8 +1,9 @@
 # transcribe_file.py
 import logging
 import os
-import sys
 import time
+
+from scribe.utils import get_data_dir
 
 logger = logging.getLogger(__name__)
 
@@ -26,14 +27,7 @@ def get_transcribe_file(obj, transcribe_file_attr='_transcribe_file'):
         enabled = settings.get('transcribe_to_file', False)
     if enabled:
         ts = int(time.time())
-        if getattr(sys, 'frozen', False):
-            # If the application is run as a bundle, the PyInstaller bootloader
-            # extends the sys module by a flag frozen=True and sets the app
-            # path into variable _MEIPASS'.
-            base_dir = os.path.dirname(sys.executable)
-        else:
-            base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        records_dir = os.path.join(base_dir, 'records')
+        records_dir = os.path.join(get_data_dir(), 'records')
         # Always try to create the records folder
         if not os.path.exists(records_dir):
             try:
