@@ -47,7 +47,7 @@ The feature is controlled by **Enable punctuation and capitalization** on the **
 2.  Download `ScribeSetup.exe` from the "Assets" section.
 3.  Run it. Scribe installs per user (no administrator rights) into `%LOCALAPPDATA%\Programs\Scribe` and adds a Start Menu shortcut.
 
-Settings, downloaded models and records are kept in `%LOCALAPPDATA%\Scribe`, so the program folder stays read-only for normal users. The uninstaller removes that folder; it can keep the downloaded voice models if you tick the box.
+Settings, downloaded models and records are kept in `%LOCALAPPDATA%\Scribe`, so the program folder stays read-only for normal users. The uninstaller removes that folder; it keeps the downloaded voice models by default, and unticking the box removes them too. If Scribe is running, the uninstaller closes it automatically after you confirm the removal, so no files stay locked.
 
 **Portable:**
 
