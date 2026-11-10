@@ -82,7 +82,7 @@ Spoken marks take priority over the automatic ones: if the model already added a
 
 ### Model Files
 
-Punctuation models live in the `models/punct/` folder inside the data folder (`%LOCALAPPDATA%\Scribe` for an installed build, next to the executable in portable mode):
+Punctuation models live in the `models/punct/` folder inside the data folder (`%LOCALAPPDATA%\Scribe`):
 
 ```
 models/
@@ -106,7 +106,7 @@ To force a fresh download of a model, close Scribe, delete its folder in the dat
 
 ### Advanced Settings
 
-The feature has no extra controls in the interface, but a few values can be changed in `settings.json` (in the data folder: `%LOCALAPPDATA%\Scribe\settings.json` for an installed build, next to the executable in portable mode):
+The feature has no extra controls in the interface, but a few values can be changed in `settings.json` (in the data folder: `%LOCALAPPDATA%\Scribe\settings.json`):
 
 | Key | Default | Meaning |
 | --- | --- | --- |

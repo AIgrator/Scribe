@@ -101,8 +101,8 @@ if __name__ == '__main__':
     qt_app.setStyleSheet(DEFAULT_APP_STYLE)
     # Centralized initialization: settings, language, translations, model path, etc.
     # All mutable data lives in one absolute directory (see get_data_dir):
-    # %LOCALAPPDATA%\Scribe for an installed build, the exe folder when
-    # portable.flag is present, the repository root when running from source.
+    # %LOCALAPPDATA%\Scribe for any frozen build, no matter where the exe is
+    # launched from; the repository root when running from source.
     # Migration from older layouts runs once, before anything creates models/.
     data_dir = get_data_dir()
     migrated = migrate_data_dir(data_dir)

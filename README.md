@@ -28,7 +28,7 @@ Scribe can punctuate dictation on its own: marks and capital letters are added t
 *   **Other languages** get rule-based sentence capitalization: the first word of a sentence is capitalized after `. ! ? ...`.
 *   **Pauses are not sentence ends.** Vosk commits text on short pauses; Scribe treats those boundaries as soft and does not insert a period or start a new sentence there. A sentence really ends with `?`, `!`, `...`, an explicit Enter, or a spoken sentence-ending mark.
 *   **Lowercase after `,` `:` `;` `—`** for Russian and Ukrainian, while proper nouns keep their capitals.
-*   Models download automatically on first run into `models/punct/<language>/` inside the data folder (`%LOCALAPPDATA%\Scribe` for an installed build, the program folder in portable mode) and are never bundled into the executable. If the model is missing or you are offline, Scribe falls back to basic capitalization rules.
+*   Models download automatically on first run into `models/punct/<language>/` inside the data folder (`%LOCALAPPDATA%\Scribe`) and are never bundled into the executable. If the model is missing or you are offline, Scribe falls back to basic capitalization rules.
 
 The feature is controlled by **Enable punctuation and capitalization** on the **Models** settings page. It is on by default; turn it off to get raw Vosk output. See the [punctuation guide](docs/14_punctuation.md) for details, voice punctuation commands, and troubleshooting.
 
@@ -47,14 +47,11 @@ The feature is controlled by **Enable punctuation and capitalization** on the **
 2.  Download `ScribeSetup.exe` from the "Assets" section.
 3.  Run it. Scribe installs per user (no administrator rights) into `%LOCALAPPDATA%\Programs\Scribe` and adds a Start Menu shortcut.
 
-Settings, downloaded models and records are kept in `%LOCALAPPDATA%\Scribe`, so the program folder stays read-only for normal users. The uninstaller removes that folder; it keeps the downloaded voice models by default, and unticking the box removes them too. If Scribe is running, the uninstaller closes it automatically after you confirm the removal, so no files stay locked.
+Settings, downloaded models and records are kept in `%LOCALAPPDATA%\Scribe`, so the program folder stays read-only for normal users. The uninstaller removes that folder completely, including the downloaded voice models. If Scribe is running, the uninstaller closes it automatically after you confirm the removal, so no files stay locked.
 
-**Portable:**
+**Standalone executable:**
 
-1.  Download `Scribe-portable.zip` and unpack it into any folder (or download `Scribe.exe` and create an empty file named `portable.flag` next to it).
-2.  Run `Scribe.exe`. All data (settings, models, records, logs) stays in that folder.
-
-Without `portable.flag` the standalone executable also works, but keeps its data in `%LOCALAPPDATA%\Scribe`, exactly like the installed build.
+You can also download `Scribe.exe` and run it without installing. It always keeps its data in `%LOCALAPPDATA%\Scribe`, no matter which folder you launch it from, so an installed and a standalone copy share the same settings and models.
 
 ## Building from Source
 

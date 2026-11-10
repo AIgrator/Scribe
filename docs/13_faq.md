@@ -20,10 +20,7 @@
 **A:** The key combination you've chosen might already be in use by another program on your system. Try assigning a different combination in the settings. In rare cases, running the program as an administrator may be required for global hotkeys to work correctly.
 
 **Q: Where are the program settings stored?**
-**A:** In `settings.json` inside the Scribe data folder:
-
-*   installed build: `%LOCALAPPDATA%\Scribe\settings.json`;
-*   portable build (empty `portable.flag` next to `Scribe.exe`): next to the executable.
+**A:** In `settings.json` inside the Scribe data folder: `%LOCALAPPDATA%\Scribe\settings.json`. Scribe always uses this folder, whether it was installed or launched as a standalone `Scribe.exe`.
 
 The same folder holds `models/`, `records/`, `cache/` and `app.log`. At every start Scribe writes the resolved absolute path to `app.log` as `Data dir: ...`, so the log always shows exactly which folder is in use.
 
@@ -40,10 +37,10 @@ The same folder holds `models/`, `records/`, `cache/` and `app.log`. At every st
 **A:** Create rules on the Replacements tab, for example "comma" -> `[Backspace],` or "question mark" -> `[Backspace]?`. Ready-to-use examples are in [Section 14](./14_punctuation.md#dictating-punctuation-by-voice).
 
 **Q: Does punctuation work without internet?**
-**A:** Yes, once the language model has been downloaded. Scribe downloads it automatically on first run into `models/punct/<language>/` inside the data folder (`%LOCALAPPDATA%\Scribe` for an installed build, next to the executable in portable mode). If the model is missing, basic capitalization rules still work offline.
+**A:** Yes, once the language model has been downloaded. Scribe downloads it automatically on first run into `models/punct/<language>/` inside the data folder (`%LOCALAPPDATA%\Scribe`). If the model is missing, basic capitalization rules still work offline.
 
 **Q: How do I uninstall the program?**
-**A:** If you used the installer, open **Settings → Apps → Installed apps**, find Scribe and choose **Uninstall**. If Scribe is still running, the uninstaller closes it automatically after you confirm the removal, so its locked files do not survive the uninstall. The uninstaller removes the program and the `%LOCALAPPDATA%\Scribe` data folder, but keeps the downloaded voice models (1–2 GB) by default for a future reinstall; untick the box to remove them too. The portable build has no uninstaller: just delete its folder.
+**A:** If you used the installer, open **Settings → Apps → Installed apps**, find Scribe and choose **Uninstall**. If Scribe is still running, the uninstaller closes it automatically after you confirm the removal, so its locked files do not survive the uninstall. The uninstaller removes the program and the `%LOCALAPPDATA%\Scribe` data folder completely, including settings, records and downloaded models. After a full uninstall the next installation starts fresh, so it asks for the recognition language again. The standalone build has no uninstaller: delete `Scribe.exe`; remove the `%LOCALAPPDATA%\Scribe` folder too if you no longer need the settings and models.
 
 **Q: How do I stop Scribe from starting automatically?**
 **A:** Open **Settings → System** and clear **Start Scribe when I sign in**. The installer may have added the same startup entry, so the checkbox reads and writes the real operating-system state. No restart is needed.

@@ -68,7 +68,5 @@ The version shown by the installer and in Windows is read from `dist\Scribe.exe`
 
 The build produces these artifacts in the `dist` folder:
 
-*   `dist\Scribe.exe` — standalone/portable executable (add an empty `portable.flag` next to it to keep all data in the same folder);
+*   `dist\Scribe.exe` — standalone executable; it always keeps its data in `%LOCALAPPDATA%\Scribe`, no matter where it is launched from;
 *   `dist\ScribeSetup.exe` — per-user installer (no administrator rights, installs to `%LOCALAPPDATA%\Programs\Scribe`, data in `%LOCALAPPDATA%\Scribe`).
-
-For a portable release, put `Scribe.exe`, `LICENSE` and an empty `portable.flag` into a folder and zip it as `dist\Scribe-portable.zip`.

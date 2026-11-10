@@ -8,15 +8,8 @@
 ; Per-user: the setup never elevates. The program goes to
 ; %LOCALAPPDATA%\Programs\Scribe, the Start Menu shortcut and the uninstall
 ; entry are per user (HKCU). Mutable data (settings.json, models, records,
-; app.log) lives in %LOCALAPPDATA%\Scribe. The uninstaller removes settings,
-; logs and records and keeps the downloaded voice models by default.
-; Downloaded voice models can take 1-2 GB, so the uninstaller keeps them by
-; default: the "keep models" checkbox is checked, and a normal uninstall removes
-; settings, logs and records but preserves models. Untick it to remove
-; everything.
-;
-; Portable use is unaffected: put an empty portable.flag next to Scribe.exe and
-; the app keeps all data in the program folder instead of %LOCALAPPDATA%.
+; app.log) lives in %LOCALAPPDATA%\Scribe. The uninstaller removes the program
+; and that folder completely: settings, logs, records and downloaded models.
 ;
 ; Inno Setup is a build-time tool only; it is not a project dependency.
 
@@ -75,16 +68,6 @@ Name: "russian"; MessagesFile: "compiler:Languages\Russian.isl"
 [CustomMessages]
 english.LaunchAtStartup=Start Scribe when I sign in to Windows
 russian.LaunchAtStartup=Запускать Scribe при входе в Windows
-english.UninstallDataTitle=Uninstall {#AppName}
-russian.UninstallDataTitle=Удаление {#AppName}
-english.UninstallDataText=Scribe keeps settings, logs, records and downloaded voice models in %LOCALAPPDATA%\Scribe. Uninstall removes settings, logs and records. Downloaded voice models can take 1-2 GB, so they are kept by default for a future reinstall; untick the box below to remove them too.
-russian.UninstallDataText=Scribe хранит настройки, журналы, записи и скачанные модели в %LOCALAPPDATA%\Scribe. При удалении настройки, журналы и записи удаляются. Скачанные голосовые модели занимают 1-2 ГБ, поэтому по умолчанию они сохраняются для повторной установки; снимите галочку ниже, чтобы удалить и их.
-english.KeepModels=Keep downloaded voice models (settings and records will still be deleted)
-russian.KeepModels=Сохранить скачанные голосовые модели (настройки и записи всё равно будут удалены)
-english.UninstallDataOk=Uninstall
-russian.UninstallDataOk=Удалить
-english.UninstallDataCancel=Cancel
-russian.UninstallDataCancel=Отмена
 english.CloseRunningFailed=Could not close Scribe. Close it manually (tray icon - Exit) and run the uninstaller again.
 russian.CloseRunningFailed=Не удалось закрыть Scribe. Закройте её вручную (значок в трее - Выход) и запустите удаление снова.
 
@@ -107,9 +90,6 @@ Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: 
 Filename: "{app}\{#AppExeName}"; Description: "{cm:LaunchProgram,Scribe}"; Flags: nowait postinstall skipifsilent
 
 [Code]
-var
-  KeepModels: Boolean;
-
 function DataDir(): string;
 begin
   Result := ExpandConstant('{localappdata}\Scribe');
@@ -183,93 +163,6 @@ begin
   end;
 end;
 
-{ The data folder is removed on uninstall. Models are the only part worth
-  keeping (they are large and can be re-used after a reinstall), so the
-  checkbox starts checked and a normal uninstall preserves them. Unticking it
-  removes everything. }
-function AskKeepModels(): Boolean;
-var
-  Form: TSetupForm;
-  Info: TNewStaticText;
-  Choice: TNewCheckBox;
-  OkButton, CancelButton: TNewButton;
-  ButtonWidth: Integer;
-begin
-  Result := False;
-  Form := CreateCustomForm(480, 240, False, True);
-  try
-    Form.Caption := ExpandConstant('{cm:UninstallDataTitle}');
-
-    Info := TNewStaticText.Create(Form);
-    Info.Parent := Form;
-    Info.Left := ScaleX(12);
-    Info.Top := ScaleY(12);
-    Info.Width := Form.ClientWidth - ScaleX(24);
-    Info.Height := ScaleY(96);
-    Info.AutoSize := False;
-    Info.WordWrap := True;
-    Info.Caption := ExpandConstant('{cm:UninstallDataText}');
-
-    Choice := TNewCheckBox.Create(Form);
-    Choice.Parent := Form;
-    Choice.Left := ScaleX(12);
-    Choice.Top := ScaleY(116);
-    Choice.Width := Form.ClientWidth - ScaleX(24);
-    Choice.Caption := ExpandConstant('{cm:KeepModels}');
-    Choice.Checked := True;
-
-    OkButton := TNewButton.Create(Form);
-    OkButton.Parent := Form;
-    OkButton.Caption := ExpandConstant('{cm:UninstallDataOk}');
-    OkButton.ModalResult := mrOk;
-    OkButton.Default := True;
-    OkButton.Height := ScaleY(23);
-    OkButton.Top := Form.ClientHeight - ScaleY(33);
-
-    CancelButton := TNewButton.Create(Form);
-    CancelButton.Parent := Form;
-    CancelButton.Caption := ExpandConstant('{cm:UninstallDataCancel}');
-    CancelButton.ModalResult := mrCancel;
-    CancelButton.Cancel := True;
-    CancelButton.Height := ScaleY(23);
-    CancelButton.Top := OkButton.Top;
-
-    ButtonWidth := Form.CalculateButtonWidth([OkButton.Caption, CancelButton.Caption]);
-    OkButton.Width := ButtonWidth;
-    CancelButton.Width := ButtonWidth;
-    OkButton.Left := Form.ClientWidth - ScaleX(12) - CancelButton.Width - ScaleX(8) - OkButton.Width;
-    CancelButton.Left := Form.ClientWidth - ScaleX(12) - CancelButton.Width;
-
-    if Form.ShowModal() = mrOk then
-    begin
-      Result := True;
-      KeepModels := Choice.Checked;
-    end;
-  finally
-    Form.Free();
-  end;
-end;
-
-function InitializeUninstall(): Boolean;
-begin
-  { Models are preserved by default, including silent uninstall. The prompt
-    below only runs when the data folder exists and the uninstall is visible. }
-  KeepModels := True;
-  { Silent uninstall (scripts, package managers) never prompts. Models stay
-    because KeepModels defaults to True; settings, logs and records are removed. }
-  if UninstallSilent() then
-  begin
-    Result := True;
-    Exit;
-  end;
-  if not DirExists(DataDir()) then
-  begin
-    Result := True;
-    Exit;
-  end;
-  Result := AskKeepModels();
-end;
-
 procedure RemoveAutostartEntry();
 var
   Value: string;
@@ -285,37 +178,13 @@ begin
   end;
 end;
 
+{ The data folder is removed completely on uninstall: settings, logs, records
+  and downloaded models. The standard uninstall confirmation already covers
+  this, so no extra prompt is shown. }
 procedure DeleteDataDir();
-var
-  FindRec: TFindRec;
-  Path: string;
 begin
-  if not DirExists(DataDir()) then
-    Exit;
-  if not KeepModels then
-  begin
+  if DirExists(DataDir()) then
     DelTree(DataDir(), True, True, True);
-    Exit;
-  end;
-  { Keep models/ and remove everything else: settings, logs, records. }
-  if FindFirst(DataDir() + '\*', FindRec) then
-  begin
-    try
-      repeat
-        if (FindRec.Name <> '.') and (FindRec.Name <> '..') and
-           (CompareText(FindRec.Name, 'models') <> 0) then
-        begin
-          Path := DataDir() + '\' + FindRec.Name;
-          if DirExists(Path) then
-            DelTree(Path, True, True, True)
-          else
-            DeleteFile(Path);
-        end;
-      until not FindNext(FindRec);
-    finally
-      FindClose(FindRec);
-    end;
-  end;
 end;
 
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);

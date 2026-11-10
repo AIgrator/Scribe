@@ -8,7 +8,6 @@ import sys
 logger = logging.getLogger(__name__)
 
 APP_NAME = 'Scribe'
-PORTABLE_FLAG = 'portable.flag'
 
 
 def get_app_data_path(app_name=APP_NAME):
@@ -55,19 +54,15 @@ def get_executable_dir():
     return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
-def is_portable():
-    """True when an empty portable.flag file sits next to the executable."""
-    return os.path.isfile(os.path.join(get_executable_dir(), PORTABLE_FLAG))
-
-
 def get_data_dir(app_name=APP_NAME):
     r"""Absolute folder for mutable data: settings, models, records and logs.
 
-    - portable.flag next to the exe -> the exe folder (portable mode);
-    - frozen build without the flag -> %LOCALAPPDATA%\Scribe (installed mode);
-    - running from source -> the repository root, so dev data stays in place.
+    A frozen build always uses %LOCALAPPDATA%\Scribe, no matter where Scribe.exe
+    is launched from, so the installed and standalone copies share one set of
+    settings and models. Running from source uses the repository root, so dev
+    data stays in place.
     """
-    if getattr(sys, 'frozen', False) and not is_portable():
+    if getattr(sys, 'frozen', False):
         data_dir = get_app_data_path(app_name)
     else:
         data_dir = get_executable_dir()
@@ -136,14 +131,14 @@ def _move_path(src, dst):
 def migrate_data_dir(data_dir=None):
     r"""One-time move of settings/models/records into the data directory.
 
-    Runs only for frozen, non-portable builds and only while data_dir has no
-    settings.json, so it never touches a source checkout, never steals data
-    into a portable copy and never repeats. Sources are checked next to the
-    executable first (the old portable layout) and then in the legacy
-    %APPDATA%\Scribe folder. Returns a list of "name <- source" strings for
-    logging; an empty list means nothing was migrated.
+    Runs only for frozen builds and only while data_dir has no settings.json,
+    so it never touches a source checkout and never repeats. Sources are
+    checked next to the executable first (the old layout where data lived
+    beside Scribe.exe) and then in the legacy %APPDATA%\Scribe folder. Returns
+    a list of "name <- source" strings for logging; an empty list means
+    nothing was migrated.
     """
-    if not getattr(sys, 'frozen', False) or is_portable():
+    if not getattr(sys, 'frozen', False):
         return []
 
     data_dir = os.path.abspath(data_dir or get_data_dir())

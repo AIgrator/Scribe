@@ -34,6 +34,6 @@ This tab contains performance, interface language, file recording, logging and s
 
 *   **Logging:** Tick **Log program activity to file** to write a technical log that helps diagnose issues. **Log Level** controls how much detail is written, from **Debug** (maximum detail) to **Critical** (errors only). Changes to logging take effect after restarting Scribe.
 
-*   **Start Scribe when I sign in:** Adds or removes Scribe from the current user's startup list. The installer offers the same option, so this checkbox always shows the real state of the operating system. It works for both the installed and the portable build.
+*   **Start Scribe when I sign in:** Adds or removes Scribe from the current user's startup list. The installer offers the same option, so this checkbox always shows the real state of the operating system. It works for both the installed and the standalone build.
 
 Click **OK** to save your changes. **Cancel** closes the window without saving them.
