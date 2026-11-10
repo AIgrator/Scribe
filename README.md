@@ -53,6 +53,23 @@ Settings, downloaded models and records are kept in `%LOCALAPPDATA%\Scribe`, so 
 
 You can also download `Scribe.exe` and run it without installing. It always keeps its data in `%LOCALAPPDATA%\Scribe`, no matter which folder you launch it from, so an installed and a standalone copy share the same settings and models.
 
+### Where Scribe Keeps Its Data
+
+Scribe always uses one per-user folder, regardless of where `Scribe.exe` is launched from:
+
+| Path | Contents |
+| --- | --- |
+| `%LOCALAPPDATA%\Scribe\settings.json` | Program settings: interface and recognition language, selected model, hotkeys, replacements, colors, autostart and other options |
+| `%LOCALAPPDATA%\Scribe\models\` | Downloaded Vosk and punctuation models |
+| `%LOCALAPPDATA%\Scribe\records\` | Transcriptions saved to file |
+| `%LOCALAPPDATA%\Scribe\app.log` | Diagnostic log |
+
+The installed and standalone builds share this folder, so they use the same settings and models. On the first launch Scribe creates `settings.json` with defaults and asks for the recognition language and model.
+
+If an older copy kept `settings.json` or `models\` next to `Scribe.exe`, Scribe moves them into `%LOCALAPPDATA%\Scribe` once at startup and removes the old copies. To move Scribe to another computer, copy the whole `%LOCALAPPDATA%\Scribe` folder (or at least `settings.json` and `models\`).
+
+The installer adds a standard per-user uninstaller. Uninstalling removes the program and the entire `%LOCALAPPDATA%\Scribe` folder, including settings and models, so the next installation starts fresh.
+
 ## Building from Source
 
 If you want to build the project from the source code, please follow the instructions in our [**BUILDING.md**](BUILDING.md) file.

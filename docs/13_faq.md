@@ -24,6 +24,9 @@
 
 The same folder holds `models/`, `records/`, `cache/` and `app.log`. At every start Scribe writes the resolved absolute path to `app.log` as `Data dir: ...`, so the log always shows exactly which folder is in use.
 
+**Q: How do I move Scribe to another computer?**
+**A:** Install Scribe on the new computer (or copy `Scribe.exe`), close it, and copy the `%LOCALAPPDATA%\Scribe` folder from the old computer to the same path on the new one. It contains `settings.json` and the downloaded models, so Scribe starts with the same language, hotkeys and models. Copying only `%LOCALAPPDATA%\Scribe\models` keeps the downloaded files, but without `settings.json` Scribe will ask for the language and model again.
+
 **Q: How do I reset all settings to default?**
 **A:** Close the program, then delete `settings.json` from the data folder described above. The next time you launch the program, it will create a new file with default settings.
 
