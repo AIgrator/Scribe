@@ -46,12 +46,15 @@ class AboutDialog(QDialog):
         email_url = "mailto:aigrator@gmail.com"
         email_label = QLabel(f'<a href="{email_url}">aigrator@gmail.com</a>')
         email_label.setOpenExternalLinks(True)
+        site_url = "https://aigrator.github.io/scribe/"
+        site_label = QLabel(f'<a href="{site_url}">aigrator.github.io/scribe</a>')
+        site_label.setOpenExternalLinks(True)
         repo_url = "https://github.com/AIgrator/Scribe"
         repo_label = QLabel(f'<a href="{repo_url}">github.com/AIgrator/Scribe</a>')
         repo_label.setOpenExternalLinks(True)
-        home_url = "https://aigrator-scribe.sourceforge.net"
-        home_label = QLabel(f'<a href="{home_url}">aigrator-scribe.sourceforge.net</a>')
-        home_label.setOpenExternalLinks(True)
+        mirror_url = "https://sourceforge.net/projects/aigrator-scribe/"
+        mirror_label = QLabel(f'<a href="{mirror_url}">sourceforge.net/projects/aigrator-scribe</a>')
+        mirror_label.setOpenExternalLinks(True)
         bugs_url = "https://github.com/AIgrator/Scribe/issues"
         bugs_label = QLabel(f'<a href="{bugs_url}">github.com/AIgrator/Scribe/issues</a>')
         bugs_label.setOpenExternalLinks(True)
@@ -59,8 +62,9 @@ class AboutDialog(QDialog):
         form_layout.addRow(self.texts.get('about_version', 'Version:'), version_label)
         form_layout.addRow(self.texts.get('about_author', 'Author:'), author_label)
         form_layout.addRow(self.texts.get('about_email', 'Email:'), email_label)
+        form_layout.addRow(self.texts.get('about_home', 'Home page:'), site_label)
         form_layout.addRow(self.texts.get('about_github', 'GitHub page:'), repo_label)
-        form_layout.addRow(self.texts.get('about_home', 'Home page:'), home_label)
+        form_layout.addRow("SourceForge:", mirror_label)
         form_layout.addRow(self.texts.get('about_bugs', 'Bugs/Suggestions:'), bugs_label)
         form_layout.addRow(self.texts.get('about_license', 'License:'), license_label)
         info_layout.addLayout(form_layout)

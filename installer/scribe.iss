@@ -20,7 +20,8 @@
 #define AppExePath AddBackslash(SourcePath) + "..\dist\Scribe.exe"
 #define AppVersion GetStringFileInfo(AppExePath, "ProductVersion")
 #define AppPublisher "AIgrator"
-#define AppURL "https://github.com/AIgrator/Scribe"
+#define AppURL "https://aigrator.github.io/scribe/"
+#define AppUpdatesURL "https://github.com/AIgrator/Scribe/releases"
 #define AppExeName "Scribe.exe"
 
 [Setup]
@@ -32,7 +33,7 @@ AppVerName={#AppName} {#AppVersion}
 AppPublisher={#AppPublisher}
 AppPublisherURL={#AppURL}
 AppSupportURL={#AppURL}
-AppUpdatesURL={#AppURL}
+AppUpdatesURL={#AppUpdatesURL}
 VersionInfoVersion={#AppVersion}
 VersionInfoCompany={#AppPublisher}
 VersionInfoDescription={#AppName} Setup
