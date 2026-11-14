@@ -32,7 +32,7 @@ a = Analysis(
               ('C:/Windows/System32/vcruntime140_1.dll', '.'),
               ('C:/Windows/System32/msvcp140.dll', '.'),
               ('C:/Windows/System32/msvcp140_1.dll', '.')],
-    datas=[('resources', 'resources'), ('translations', 'translations'), ('venv/Lib/site-packages/vosk', 'vosk')]
+    datas=[('resources', 'resources'), ('translations', 'translations'), ('venv/Lib/site-packages/vosk', 'vosk'), ('punct_models.json', '.')]
     + _pymorphy_datas,
     hiddenimports=['pymorphy2_dicts_ru', 'pymorphy2_dicts_uk'],
     hookspath=[],
