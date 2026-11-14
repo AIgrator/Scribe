@@ -109,9 +109,9 @@ if __name__ == '__main__':
     settings_path = os.path.join(data_dir, 'settings.json')
     models_dir = get_models_path()
     settings_manager, settings, ui_lang, texts, recognition_language, model_path = initialize_app(settings_path, models_dir)
-    # Ensure the punctuation model for the recognition language is present
+    # Ensure the multilingual punctuation model is present
     # (covers existing installs updated to a version with punctuation).
-    # Skipped silently when disabled, unknown language, or offline.
+    # Skipped silently when disabled, unsupported language, or offline.
     try:
         from scribe.model_manager import ensure_punctuation_model
         ensure_punctuation_model(models_dir, recognition_language, texts, settings_manager)

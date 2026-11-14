@@ -9,7 +9,7 @@ Scribe is a versatile tool designed to integrate voice commands and transcriptio
 ## Key Features
 
 *   **Real-Time Transcription:** Dictate text directly into any application with high accuracy.
-*   **Punctuation and Capitalization:** Automatic `. , ? ! :` and capital letters for Russian and English, with basic sentence capitalization for every other language. Fully offline and enabled by default.
+*   **Punctuation and Capitalization:** Automatic `. , ? :` and capital letters in every supported language, from one offline multilingual model. Fully offline and enabled by default.
 *   **Command Mode:** Execute actions using custom voice commands.
 *   **Offline and Private:** All voice processing happens locally on your machine. No data is ever sent to the cloud.
 *   **Lightweight Performance:** Low CPU usage, especially when using small Vosk models, ensuring smooth operation without slowing down your system.
@@ -24,11 +24,10 @@ Scribe is a versatile tool designed to integrate voice commands and transcriptio
 
 Scribe can punctuate dictation on its own: marks and capital letters are added to the final text, entirely on your machine.
 
-*   **Russian and English** use a compact offline neural model (ONNX int8, CPU inference). It inserts `. , ? ! :` and ellipsis, and restores capitalization.
-*   **Other languages** get rule-based sentence capitalization: the first word of a sentence is capitalized after `. ! ? ...`.
-*   **Pauses are not sentence ends.** Vosk commits text on short pauses; Scribe treats those boundaries as soft and does not insert a period or start a new sentence there. A sentence really ends with `?`, `!`, `...`, an explicit Enter, or a spoken sentence-ending mark.
+*   **One multilingual model** covers every recognition language except Breton (`br`). It is a compact offline truecase model (ONNX int8, CPU inference) that inserts `. , ? :` and a dash, restores capitalization, and uses script-specific marks for Chinese, Japanese, Arabic, Devanagari, Greek and Ethiopic.
+*   **Pauses are not sentence ends.** Vosk commits text on short pauses; Scribe treats those boundaries as soft and does not insert a period or start a new sentence there. The model also sees the previous words you dictated, so a pause in the middle of a sentence does not break it. A sentence really ends with `?`, `!`, `...`, an explicit Enter, or a spoken sentence-ending mark.
 *   **Lowercase after `,` `:` `;` `—`** for Russian and Ukrainian, while proper nouns keep their capitals.
-*   Models download automatically on first run into `models/punct/<language>/` inside the data folder (`%LOCALAPPDATA%\Scribe`) and are never bundled into the executable. If the model is missing or you are offline, Scribe falls back to basic capitalization rules.
+*   The model downloads automatically on first run into `models/punct/multi/` inside the data folder (`%LOCALAPPDATA%\Scribe`) and is never bundled into the executable. If the model is missing or you are offline, Scribe falls back to basic capitalization rules.
 
 The feature is controlled by **Enable punctuation and capitalization** on the **Models** settings page. It is on by default; turn it off to get raw Vosk output. See the [punctuation guide](docs/14_punctuation.md) for details, voice punctuation commands, and troubleshooting.
 

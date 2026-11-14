@@ -31,7 +31,7 @@ The same folder holds `models/`, `records/`, `cache/` and `app.log`. At every st
 **A:** Close the program, then delete `settings.json` from the data folder described above. The next time you launch the program, it will create a new file with default settings.
 
 **Q: Does Scribe add punctuation and capital letters?**
-**A:** Yes. The **Enable punctuation and capitalization** checkbox on the Models settings page is on by default. Russian and English use a small offline neural model; other languages get basic sentence capitalization. See [Section 14: Punctuation and Capitalization](./14_punctuation.md).
+**A:** Yes. The **Enable punctuation and capitalization** checkbox on the Models settings page is on by default. One offline multilingual model punctuates and capitalizes every supported language (all Vosk catalog languages except Breton). See [Section 14: Punctuation and Capitalization](./14_punctuation.md).
 
 **Q: A short pause splits my sentence and starts a new one.**
 **A:** Update to version 1.3.1 or newer. Pauses are now treated as soft boundaries: no period is added and the continuation stays lowercase. Only `?`, `!`, `...`, Enter, or a spoken sentence-ending mark end a sentence.
@@ -40,7 +40,7 @@ The same folder holds `models/`, `records/`, `cache/` and `app.log`. At every st
 **A:** Create rules on the Replacements tab, for example "comma" -> `[Backspace],` or "question mark" -> `[Backspace]?`. Ready-to-use examples are in [Section 14](./14_punctuation.md#dictating-punctuation-by-voice).
 
 **Q: Does punctuation work without internet?**
-**A:** Yes, once the language model has been downloaded. Scribe downloads it automatically on first run into `models/punct/<language>/` inside the data folder (`%LOCALAPPDATA%\Scribe`). If the model is missing, basic capitalization rules still work offline.
+**A:** Yes, once the model has been downloaded. Scribe downloads it automatically on first run into `models/punct/multi/` inside the data folder (`%LOCALAPPDATA%\Scribe`). If the model is missing, basic capitalization rules still work offline.
 
 **Q: How do I uninstall the program?**
 **A:** If you used the installer, open **Settings → Apps → Installed apps**, find Scribe and choose **Uninstall**. If Scribe is still running, the uninstaller closes it automatically after you confirm the removal, so its locked files do not survive the uninstall. The uninstaller removes the program and the `%LOCALAPPDATA%\Scribe` data folder completely, including settings, records and downloaded models. After a full uninstall the next installation starts fresh, so it asks for the recognition language again. The standalone build has no uninstaller: delete `Scribe.exe`; remove the `%LOCALAPPDATA%\Scribe` folder too if you no longer need the settings and models.

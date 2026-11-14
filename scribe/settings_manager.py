@@ -29,7 +29,7 @@ class SettingsManager(QObject):
         "enable_replacements": True,  # Enable word replacement for final text
         "enable_partial_replacements": True,  # Enable word replacement for partial insertions
         "enable_punctuation": True,  # Punctuation + capitalization for final text (rules-only fallback if model missing)
-        "punctuation_model_dir": "",  # Custom punctuator model dir, empty = models/punct/<lang>
+        "punctuation_model_dir": "",  # Custom punctuator model dir, empty = models/punct/multi
         "punct_confidence": 0.5,  # Min mark probability, else no mark (0.0 = argmax-only)
         "punct_context_words": 30,  # Previous-final words fed to the model as context
         "keyboard_settings": {   # Settings for keyboard inserter

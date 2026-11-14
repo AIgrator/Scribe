@@ -2,7 +2,7 @@
 """Offline punctuation and capitalization for final ASR results.
 
 Pipeline (runs ONLY on final text, never on partials):
-  1. neural punctuation, ONNX int8 (optional, Russian default) — marks ? ! . , : ...
+  1. neural punctuation and truecasing, ONNX int8 (optional, one multilingual model) — marks . , ? : -
   2. duplicate-punctuation cleanup (e.g. ".." -> ".", keeps "...")
   3. soft ASR chunk boundaries: drop the terminal period the model adds to
      every final and keep the first word lowercase on a continuation
@@ -17,10 +17,12 @@ import logging
 import os
 import re
 
+from scribe.utils import PUNCT_MODEL_KEY, PUNCT_UNSUPPORTED_LANGS
+
 logger = logging.getLogger(__name__)
 
 _MARKS = {"B-!": "!", "B-,": ",", "B-.": ".", "B-...": "...", "B-:": ":", "B-?": "?", "O": ""}
-_SENTENCE_END = (".", "!", "?", "...")
+_SENTENCE_END = (".", "!", "?", "...", "。", "！", "？")
 # First parts of multi-word geo names whose head alone has no proper tag ("санкт петербург").
 _GEO_PREFIXES = {"санкт", "нью", "сан", "лос", "сен", "усть", "порт"}
 _PROPER_TAGS = {"Name", "Surn", "Patr", "Geox"}
@@ -33,6 +35,16 @@ _morphs = {}
 _COMMA_LOWER_LANGS = ('ru', 'uk')
 _LOWER_AFTER_RE = r'[,:;—]'
 _WORD_RE = r'A-Za-zА-Яа-яЁёІіЇїЄєҐґ'
+
+# Multilingual truecase model: script-aware punctuation and word boundaries.
+_CJK_RE = re.compile(r'[぀-ヿ㐀-鿿豈-﫿]')
+_FULLWIDTH_MARKS = {'.': '。', ',': '，', '?': '？', ':': '：', '-': '——'}
+_SCRIPT_MARKS = (
+    (re.compile(r'[ऀ-৿]'), {'.': '।'}),  # Devanagari, Bengali
+    (re.compile(r'[؀-ۿݐ-ݿ]'), {',': '،', '?': '؟'}),  # Arabic script
+    (re.compile(r'[Ͱ-Ͽἀ-῿]'), {'?': ';'}),  # Greek
+    (re.compile(r'[ሀ-፿]'), {'.': '።', ',': '፣'}),  # Ethiopic
+)
 
 
 def _dict_path_for(lang):
@@ -170,12 +182,12 @@ class Punctuator:
     def _resolve_model_dir(self):
         if self.model_dir:
             return self.model_dir
-        lang = self.lang
         # NOTE: must be exe-aware! In a PyInstaller build __file__ points into
         # the temp extraction dir, while models live next to the executable.
         from scribe.utils import get_models_path
-        # Per-language folder: models/punct/<lang>/. Missing folder => rules-only mode.
-        return os.path.join(get_models_path(), 'punct', lang)
+        # One multilingual model for every language: models/punct/multi/.
+        # Missing folder => rules-only mode.
+        return os.path.join(get_models_path(), 'punct', PUNCT_MODEL_KEY)
 
     @property
     def lang(self):
@@ -209,6 +221,9 @@ class Punctuator:
             # Not an attempt: warmup or finals while disabled must not poison
             # the flag, otherwise re-enabling would need an app restart.
             return False
+        if self.lang in PUNCT_UNSUPPORTED_LANGS:
+            # No model for this language: rules-only mode, retry after a switch.
+            return False
         self._load_attempted = True
         try:
             import onnxruntime as ort
@@ -229,21 +244,32 @@ class Punctuator:
         try:
             self._session = ort.InferenceSession(onnx_path, providers=['CPUExecutionProvider'])
             self._tokenizer = Tokenizer.from_file(tok_path)
-            # Label decoding, see model.json sidecar. Styles:
+            # Label decoding, see the model.json sidecar (older models) or
+            # config.json (Hugging Face exports). Styles:
             #  - "after_each" (markusiko rubert ru): id -> mark appended after the word.
             #  - "this_word_case" (felflare bert en): "<mark><case>" per word, e.g.
             #    ".U" = period after + capitalize THIS word.
             #  - "this_word_case_total" (rupunct small ru): "<CASE>_<MARK>", e.g.
             #    "UPPER_PERIOD" = capitalize this word + period after it.
+            #  - "mark_case" (Horizon-Labs truecase): "<mark>|<case>" per word, e.g.
+            #    ".|Cap" = period after + capitalize THIS word.
             self._style = "after_each"
             self._id2mark = {0: "!", 1: ",", 2: ".", 3: "...", 4: ":", 5: "?", 6: ""}
             self._marks = {}
+            self._labels = {}
             try:
                 import json as _json
+                meta = {}
                 meta_path = os.path.join(d, 'model.json')
+                cfg_path = os.path.join(d, 'config.json')
                 if os.path.exists(meta_path):
                     with open(meta_path, encoding='utf-8') as f:
                         meta = _json.load(f)
+                elif os.path.exists(cfg_path):
+                    with open(cfg_path, encoding='utf-8') as f:
+                        cfg = _json.load(f)
+                    meta = {'style': 'mark_case', 'id2label': cfg.get('id2label', {})}
+                if meta:
                     self._style = meta.get('style', 'after_each')
                     self._marks = meta.get('marks', {})
                     id2label = meta.get('id2label')
@@ -253,13 +279,123 @@ class Punctuator:
                         else:
                             self._id2mark = {int(k): v for k, v in id2label.items()}
             except Exception as e:
-                logger.warning(f"[Punctuator] bad model.json, using default labels: {e}")
+                logger.warning(f"[Punctuator] bad model metadata, using default labels: {e}")
+            if self._style == 'mark_case':
+                self._labels = dict(self._id2mark) or {
+                    i: lab for i, lab in enumerate((
+                        '0|lower', '0|Cap', '0|UPPER',
+                        '.|lower', '.|Cap', '.|UPPER',
+                        ',|lower', ',|Cap', ',|UPPER',
+                        '?|lower', '?|Cap', '?|UPPER',
+                        '-|lower', '-|Cap', '-|UPPER',
+                        ':|lower', ':|Cap', ':|UPPER',
+                    ))
+                }
             self._loaded = True
             logger.info(f"[Punctuator] neural model loaded from {d}")
             return True
         except Exception as e:
             logger.warning(f"[Punctuator] failed to load model, rules-only mode: {e}")
             return False
+
+    @staticmethod
+    def _lower_keep_len(text):
+        """Lowercase without changing the string length (offsets stay valid)."""
+        return "".join(c.lower() if len(c.lower()) == 1 else c for c in text)
+
+    @staticmethod
+    def _apply_case(word, case):
+        """Apply a truecase label to one word."""
+        if case == 'UPPER':
+            upper = word.upper()
+            return upper if len(upper) == len(word) else word
+        if case == 'Cap':
+            for i, ch in enumerate(word):
+                if ch.lower() != ch.upper():
+                    up = ch.upper()
+                    return word[:i] + up + word[i + 1:] if len(up) == 1 else word
+        return word
+
+    def _mark_for(self, mark, prev_char):
+        """Script-aware mark, matching the model's own decoder."""
+        if _CJK_RE.match(prev_char):
+            return _FULLWIDTH_MARKS.get(mark, mark)
+        for rx, mapping in _SCRIPT_MARKS:
+            if rx.match(prev_char):
+                return mapping.get(mark, ' -' if mark == '-' else mark)
+        if mark == '-':
+            return ' —' if self.lang in ('ru', 'uk') else ' -'
+        return mark
+
+    def _punctuate_mark_case(self, text):
+        """Decode '<mark>|<case>' labels from the multilingual truecase model.
+
+        Works on the tokenizer's offsets, so scripts without spaces (Chinese,
+        Japanese) get a mark after the right character and script-specific
+        punctuation. Context is the tail of previous finals, not the current
+        final: a pause is not a sentence boundary.
+        """
+        try:
+            import numpy as np
+            words = text.split()
+            nctx = self.context_words
+            ctx = self._context[-nctx:] if nctx > 0 else []
+            while len(ctx) + len(words) > 60 and ctx:
+                ctx.pop(0)
+            cur = self._lower_keep_len(" ".join(words))
+            full = self._lower_keep_len(" ".join(ctx + words)) if ctx else cur
+            base = len(full) - len(cur) if ctx else 0
+            # Remember this final for the next ones (context is unpunctuated).
+            self._context.extend(words)
+            if len(self._context) > 120:
+                self._context = self._context[-120:]
+            enc = self._tokenizer.encode(full)
+            ids = enc.ids
+            mask = [1] * len(ids)
+            feed = {"input_ids": np.array([ids], dtype=np.int64),
+                    "attention_mask": np.array([mask], dtype=np.int64)}
+            try:
+                need = [i.name for i in self._session.get_inputs()]
+            except Exception:
+                need = []
+            if 'token_type_ids' in need:
+                feed['token_type_ids'] = np.zeros_like(feed['input_ids'])
+            logits = self._session.run(["logits"], feed)[0][0]
+            thr = getattr(self, 'confidence', 0.0) or 0.0
+            labels = {}
+            specials = enc.special_tokens_mask
+            for k, (s, e) in enumerate(enc.offsets):
+                if specials[k] or e <= base or e <= s:
+                    continue
+                el = e - base
+                if el > len(cur):
+                    continue
+                # A mark belongs only at a word end (or after any CJK char).
+                if not (el == len(cur) or (el < len(cur) and cur[el] == ' ')
+                        or _CJK_RE.match(cur[el - 1])):
+                    continue
+                row = logits[k]
+                pred_id = int(row.argmax())
+                if thr > 0:
+                    ex = np.exp(row - row.max())
+                    if float(ex[pred_id] / ex.sum()) < thr:
+                        continue
+                lab = str(self._labels.get(pred_id, '0|lower'))
+                mark, _, case = lab.partition('|')
+                labels[el] = (mark, case or 'lower')
+            out, prev = [], 0
+            for el in sorted(labels):
+                mark, case = labels[el]
+                start = max(prev, cur.rfind(' ', 0, el) + 1)
+                word = cur[start:el]
+                mark_str = '' if mark == '0' else self._mark_for(mark, cur[el - 1])
+                out.append(cur[prev:start] + self._apply_case(word, case) + mark_str)
+                prev = el
+            out.append(cur[prev:])
+            return "".join(out)
+        except Exception as e:
+            logger.warning(f"[Punctuator] mark_case pass failed, keeping raw text: {e}")
+            return text
 
     def punctuate_neural(self, text):
         """Add punctuation marks with the neural model. Returns text unchanged on any failure.
@@ -271,18 +407,21 @@ class Punctuator:
             return text
         if not self._ensure_loaded():
             return text
+        if getattr(self, '_style', 'after_each') == 'mark_case':
+            return self._punctuate_mark_case(text)
         try:
             import numpy as np
             words = text.split()
-            # Remember raw words for the next finals (context is unpunctuated).
-            self._context.extend(words)
-            if len(self._context) > 120:
-                self._context = self._context[-120:]
             nctx = self.context_words
+            # Context is the tail of PREVIOUS finals; add this final afterwards.
             ctx = self._context[-nctx:] if nctx > 0 else []
             # Keep the whole input safely below the 256-token limit.
             while len(ctx) + len(words) > 60 and ctx:
                 ctx.pop(0)
+            # Remember raw words for the next finals (context is unpunctuated).
+            self._context.extend(words)
+            if len(self._context) > 120:
+                self._context = self._context[-120:]
             full = ctx + words
             off = len(ctx)
             enc = self._tokenizer.encode_batch([full], is_pretokenized=True)[0]
@@ -325,13 +464,11 @@ class Punctuator:
                 case_thr = max(thr, 0.75)
                 if style == 'this_word_case_total':
                     lab = str(self._id2mark.get(pred_id, 'LOWER_O'))
-                    head, _, suffix = lab.partition('_')
-                    if suffix in ('', 'O') and head != 'LOWER' and prob < case_thr:
+                    head, suffix = lab.rsplit('_', 1)
+                    if suffix == 'O' and head != 'LOWER' and prob < case_thr:
                         out.append(w)
                         continue
-                    lab = str(self._id2mark.get(pred_id, 'LOWER_O'))
-                    head, _, suffix = lab.partition('_')
-                    if head == 'TOTAL':
+                    if head == 'UPPER_TOTAL':
                         ww = w.upper()
                     elif head == 'UPPER':
                         ww = w[:1].upper() + w[1:] if w else w
@@ -384,7 +521,7 @@ class Punctuator:
                 if upper_next:
                     chars[i] = ch.upper()
                     upper_next = False
-            elif ch in '.!?':
+            elif ch in '.!?。！？':
                 # '...' is three dots; the loop naturally keeps upper_next True until alpha
                 upper_next = True
         stripped = text.rstrip()

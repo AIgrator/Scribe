@@ -9,6 +9,11 @@ logger = logging.getLogger(__name__)
 
 APP_NAME = 'Scribe'
 
+# Folder name for the single multilingual punctuation model (models/punct/<key>).
+PUNCT_MODEL_KEY = 'multi'
+# Languages without a model: Breton is absent from the 88-language training set.
+PUNCT_UNSUPPORTED_LANGS = frozenset({'br'})
+
 
 def get_app_data_path(app_name=APP_NAME):
     r"""Get the per-user data directory for the current OS (created if needed).

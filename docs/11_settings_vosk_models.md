@@ -9,10 +9,10 @@ This tab is your command center for speech recognition models. Here you can view
 At the top of the tab there is a checkbox: **Enable punctuation and capitalization**.
 
 *   It is **on by default**, so new installations get punctuated text right away.
-*   When it is on, Scribe adds `. , ? ! :` and capital letters to the final recognition result using offline models for **Russian** and **English**, and basic capitalization rules for all other languages.
+*   When it is on, Scribe adds `. , ? :`, a dash and capital letters to the final recognition result using one offline multilingual model for every supported language (all Vosk catalog languages except Breton).
 *   When it is off, you get the raw Vosk transcript, with no automatic marks or case changes.
 
-The matching punctuation model is downloaded automatically on first run into `models/punct/<language>/`. It is not stored inside `Scribe.exe`, and Scribe keeps working without it by falling back to simple capitalization rules.
+The punctuation model is downloaded automatically on first run into `models/punct/multi/`. It is not stored inside `Scribe.exe`, and Scribe keeps working without it by falling back to simple capitalization rules.
 
 For a full description of the feature — how pauses are handled, how to dictate punctuation by voice, and what to do if marks do not appear — see [Section 14: Punctuation and Capitalization](./14_punctuation.md).
 

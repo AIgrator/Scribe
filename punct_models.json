@@ -1,42 +1,23 @@
 {
-  "_comment": "Punctuation model catalog for Scribe. Downloaded on demand into models/punct/<lang>/. Local names must match what scribe/punctuator.py expects.",
-  "ru": {
-    "source": "AIgrator/scribe-punct-ru (RUPunct_big int8, MIT; base RUPunct/RUPunct_big)",
+  "_comment": "Punctuation model catalog for Scribe. One multilingual truecase model serves every recognition language except unsupported_languages. Downloaded on demand into models/punct/multi/.",
+  "multi": {
+    "source": "Horizon-Labs/multilingual-punctuation-truecase-small (Apache-2.0), int8 ONNX",
+    "unsupported_languages": ["br"],
     "files": [
       {
-        "url": "https://huggingface.co/AIgrator/scribe-punct-ru/resolve/main/rupunct_big_int8.onnx",
+        "url": "https://huggingface.co/Horizon-Labs/multilingual-punctuation-truecase-small/resolve/main/onnx/model_quantized.onnx",
         "name": "model.int8.onnx",
-        "size": 178530799
+        "size": 268432863
       },
       {
-        "url": "https://huggingface.co/AIgrator/scribe-punct-ru/resolve/main/rupunct_big_tokenizer.json",
+        "url": "https://huggingface.co/Horizon-Labs/multilingual-punctuation-truecase-small/resolve/main/tokenizer.json",
         "name": "tokenizer.json",
-        "size": 3714603
+        "size": 34363286
       },
       {
-        "url": "https://huggingface.co/AIgrator/scribe-punct-ru/resolve/main/rupunct_big_model.json",
-        "name": "model.json",
-        "size": 1310
-      }
-    ]
-  },
-  "en": {
-    "source": "AIgrator/scribe-punct-en (export of felflare/bert-restore-punctuation, MIT)",
-    "files": [
-      {
-        "url": "https://huggingface.co/AIgrator/scribe-punct-en/resolve/main/model.int8.onnx",
-        "name": "model.int8.onnx",
-        "size": 109750990
-      },
-      {
-        "url": "https://huggingface.co/AIgrator/scribe-punct-en/resolve/main/tokenizer.json",
-        "name": "tokenizer.json",
-        "size": 711397
-      },
-      {
-        "url": "https://huggingface.co/AIgrator/scribe-punct-en/resolve/main/model.json",
-        "name": "model.json",
-        "size": 364
+        "url": "https://huggingface.co/Horizon-Labs/multilingual-punctuation-truecase-small/resolve/main/config.json",
+        "name": "config.json",
+        "size": 2630
       }
     ]
   }
