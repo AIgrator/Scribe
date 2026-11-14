@@ -9,7 +9,7 @@ Scribe is a versatile tool designed to integrate voice commands and transcriptio
 ## Key Features
 
 *   **Real-Time Transcription:** Dictate text directly into any application with high accuracy.
-*   **Punctuation and Capitalization:** Automatic `. , ? :` and capital letters in every supported language, from one offline multilingual model. Fully offline and enabled by default.
+*   **Punctuation and Capitalization:** Automatic `. , ? :` and `-`, plus capital letters, in every language covered by the model — 31 of the 32 Vosk catalog languages (all except Breton). One offline multilingual model, enabled by default.
 *   **Command Mode:** Execute actions using custom voice commands.
 *   **Offline and Private:** All voice processing happens locally on your machine. No data is ever sent to the cloud.
 *   **Lightweight Performance:** Low CPU usage, especially when using small Vosk models, ensuring smooth operation without slowing down your system.
