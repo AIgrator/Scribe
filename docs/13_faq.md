@@ -31,7 +31,7 @@ The same folder holds `models/`, `records/`, `cache/` and `app.log`. At every st
 **A:** Install Scribe on the new computer (or copy `Scribe.exe`), close it, and copy the `%LOCALAPPDATA%\Scribe` folder from the old computer to the same path on the new one. It contains `settings.json` and the downloaded models, so Scribe starts with the same language, hotkeys and models. Copying only `%LOCALAPPDATA%\Scribe\models` keeps the downloaded files, but without `settings.json` Scribe will ask for the language and model again. A portable copy is simpler: copy the whole program folder with `portable.flag` in it.
 
 **Q: How do I make Scribe portable?**
-**A:** Put an empty file named `portable.flag` next to `Scribe.exe`. Scribe then keeps `settings.json`, `models/`, `records/` and `app.log` in the program folder instead of `%LOCALAPPDATA%\Scribe`, so the folder can be moved to another computer or a USB drive. Delete the flag to go back to the shared `%LOCALAPPDATA%\Scribe` folder.
+**A:** Download `Scribe-portable.zip` from the releases page and unpack it anywhere: the archive contains `Scribe.exe` and the empty `portable.flag` file, so settings, models, records and `app.log` stay in that folder and the whole folder can be moved to another computer or a USB drive. If you already have `Scribe.exe`, create an empty file named `portable.flag` next to it. Delete the flag to go back to the shared `%LOCALAPPDATA%\Scribe` folder.
 
 **Q: How do I reset all settings to default?**
 **A:** Close the program, then delete `settings.json` from the data folder described above. The next time you launch the program, it will create a new file with default settings.

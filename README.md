@@ -54,7 +54,7 @@ You can also download `Scribe.exe` and run it without installing. It keeps its d
 
 **Portable:**
 
-To keep settings, models, records and logs next to the program, create an empty file named `portable.flag` in the same folder as `Scribe.exe`. Scribe then uses that folder instead of `%LOCALAPPDATA%\Scribe`, so the whole folder can be copied to another computer or a USB drive. Delete the flag to return to the shared `%LOCALAPPDATA%\Scribe` folder.
+Download `Scribe-portable.zip` from the [releases page](https://github.com/AIgrator/Scribe/releases) and unpack it anywhere — a local folder, a portable disk or a USB drive. The archive already contains the empty `portable.flag` file, so settings, models, records and the log stay next to `Scribe.exe` and the whole folder can be copied to another computer. If you use the standalone `Scribe.exe` instead, create an empty file named `portable.flag` in the same folder to get the same behaviour. Delete the flag to return to the shared `%LOCALAPPDATA%\Scribe` folder.
 
 ### Where Scribe Keeps Its Data
 

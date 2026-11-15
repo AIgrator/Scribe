@@ -69,4 +69,17 @@ The version shown by the installer and in Windows is read from `dist\Scribe.exe`
 The build produces these artifacts in the `dist` folder:
 
 *   `dist\Scribe.exe` — standalone executable; it keeps its data in `%LOCALAPPDATA%\Scribe`, or in its own folder when an empty `portable.flag` file sits next to it;
-*   `dist\ScribeSetup.exe` — per-user installer (no administrator rights, installs to `%LOCALAPPDATA%\Programs\Scribe`, data in `%LOCALAPPDATA%\Scribe`).
+*   `dist\ScribeSetup.exe` — per-user installer (no administrator rights, installs to `%LOCALAPPDATA%\Programs\Scribe`, data in `%LOCALAPPDATA%\Scribe`);
+*   `dist\Scribe-portable.zip` — portable archive for the release: `Scribe.exe`, an empty `portable.flag` and `README-portable.txt`.
+
+To rebuild the portable archive:
+
+```powershell
+$stage = "$env:TEMP\Scribe-portable"
+Remove-Item $stage -Recurse -Force -ErrorAction SilentlyContinue
+New-Item -ItemType Directory $stage | Out-Null
+Copy-Item dist\Scribe.exe $stage
+New-Item -ItemType File "$stage\portable.flag" | Out-Null
+Set-Content "$stage\README-portable.txt" -Encoding UTF8 -Value "..."
+Compress-Archive -Path "$stage\*" -DestinationPath dist\Scribe-portable.zip -Force
+```
