@@ -495,6 +495,9 @@ class Punctuator:
     @staticmethod
     def cleanup_dupes(text):
         """Collapse accidental double marks, keep ellipsis. E.g. 'домой. .' handled by voice commands."""
+        # A mark never follows a space: "домой ." -> "домой.". Neural models and
+        # the replacement stream can both leave a stray space before a mark.
+        text = re.sub(r'[ \t]+([.,!?:;…。，！？：；،؟])', r'\1', text)
         ph = "\ue000"
         text = text.replace("...", ph)
         text = re.sub(r'\.{2,}', '.', text)

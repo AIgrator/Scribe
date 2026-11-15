@@ -41,7 +41,7 @@ class AboutDialog(QDialog):
 
         form_layout = QFormLayout()
         form_layout.setContentsMargins(0, 0, 0, 0)  # Removed top margin to reduce space
-        version_label = QLabel("1.5.0")
+        version_label = QLabel("1.6.0")
         author_label = QLabel("Yaroslav Litovchenko")
         email_url = "mailto:aigrator@gmail.com"
         email_label = QLabel(f'<a href="{email_url}">aigrator@gmail.com</a>')

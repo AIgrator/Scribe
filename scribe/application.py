@@ -170,7 +170,10 @@ class Application(QObject):
         self.controller.state_changed.connect(self.tray_app.update_tray_ui)
 
         self.hotkey_manager = HotkeyManager(self.settings_manager, self.controller)
-        self.model_path = self.settings.get('model_path', self.model_path)
+        # Remember the path the controller actually loaded. Settings store the model
+        # by name and language, not by path, so reading a 'model_path' key kept the
+        # old path here and every later settings save looked like a model change.
+        self.model_path = controller.model_path or self.model_path
         self.recognition_language = self.settings.get('language', self.recognition_language)
 
         if was_running:

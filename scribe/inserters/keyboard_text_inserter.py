@@ -1,5 +1,7 @@
 # inserters/linux_keyboard_text_inserter.py
+import ctypes
 import logging
+import platform
 import queue
 import threading
 import time
@@ -10,6 +12,78 @@ from scribe.inserters.text_inserter import TextInserter
 
 logger = logging.getLogger(__name__)
 
+_IS_WINDOWS = platform.system() == 'Windows'
+
+# Win32 constants for SendInput.
+_INPUT_KEYBOARD = 1
+_KEYEVENTF_KEYUP = 0x0002
+_KEYEVENTF_UNICODE = 0x0004
+
+
+class _KEYBDINPUT(ctypes.Structure):
+    _fields_ = [
+        ('wVk', ctypes.c_ushort),
+        ('wScan', ctypes.c_ushort),
+        ('dwFlags', ctypes.c_ulong),
+        ('time', ctypes.c_ulong),
+        ('dwExtraInfo', ctypes.c_void_p),
+    ]
+
+
+class _MOUSEINPUT(ctypes.Structure):
+    # Present only to give the union its real (largest) size, so that
+    # sizeof(INPUT) matches what SendInput expects.
+    _fields_ = [
+        ('dx', ctypes.c_long),
+        ('dy', ctypes.c_long),
+        ('mouseData', ctypes.c_ulong),
+        ('dwFlags', ctypes.c_ulong),
+        ('time', ctypes.c_ulong),
+        ('dwExtraInfo', ctypes.c_void_p),
+    ]
+
+
+class _INPUTUNION(ctypes.Union):
+    _fields_ = [('ki', _KEYBDINPUT), ('mi', _MOUSEINPUT)]
+
+
+class _INPUT(ctypes.Structure):
+    _fields_ = [('type', ctypes.c_ulong), ('u', _INPUTUNION)]
+
+
+def _send_unicode_win32(text: str) -> bool:
+    """Type text with SendInput and KEYEVENTF_UNICODE.
+
+    pynput resolves a character to a *virtual key* using the layout of Scribe's
+    own thread; the target window then translates that key with *its* layout.
+    When the two layouts differ, Cyrillic turns into Latin and '.' becomes 'ю'
+    (issue #1). The Unicode flag sends the code unit as WM_CHAR instead, so the
+    target receives exactly the characters we asked for, whatever the layout.
+
+    Returns True when every event was accepted, False to let the caller fall
+    back to pynput (non-Windows, or SendInput refused the input).
+    """
+    if not text:
+        return True
+    try:
+        user32 = ctypes.windll.user32
+        raw = text.encode('utf-16-le')
+        units = [int.from_bytes(raw[i:i + 2], 'little')
+                 for i in range(0, len(raw), 2)]
+        events = []
+        for unit in units:
+            for flags in (_KEYEVENTF_UNICODE,
+                          _KEYEVENTF_UNICODE | _KEYEVENTF_KEYUP):
+                event = _INPUT(type=_INPUT_KEYBOARD)
+                event.u.ki = _KEYBDINPUT(0, unit, flags, 0, None)
+                events.append(event)
+        array = (_INPUT * len(events))(*events)
+        sent = user32.SendInput(len(events), array, ctypes.sizeof(_INPUT))
+        return sent == len(events)
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"Win32 SendInput(unicode) failed: {e}")
+        return False
+
 
 class KeyboardTextInserter(TextInserter):
     def __init__(self, settings_manager):
@@ -18,6 +92,7 @@ class KeyboardTextInserter(TextInserter):
         self._worker = threading.Thread(target=self._worker_loop, daemon=True)
         self._running = False
         self._keyboard = Controller()
+        self._unicode_typing = _IS_WINDOWS
         self._update_settings(self.settings_manager.all())
         self.settings_manager.settings_changed.connect(self._update_settings)
 
@@ -53,6 +128,13 @@ class KeyboardTextInserter(TextInserter):
         logger.info(f"erase_chars() called with count: {count}")
         self._queue.put(('erase_chars', count))
 
+    def _type_char(self, char: str):
+        """Types one character, layout-independently when possible."""
+        if self._unicode_typing and char >= ' ' and _send_unicode_win32(char):
+            return
+        self._keyboard.press(char)
+        self._keyboard.release(char)
+
     def _worker_loop(self):
         while self._running:
             try:
@@ -62,8 +144,7 @@ class KeyboardTextInserter(TextInserter):
                 if cmd == 'insert_text':
                     # Type character by character with delay, mimicking keyboard.write(delay=...)
                     for char in arg:
-                        self._keyboard.press(char)
-                        self._keyboard.release(char)
+                        self._type_char(char)
                         time.sleep(self.key_delay)
                     time.sleep(self.after_text_delay * len(arg))
                 elif cmd == 'insert_actions':
@@ -71,8 +152,7 @@ class KeyboardTextInserter(TextInserter):
                         if action['type'] == 'text' and action['value']:
                             # Type character by character with delay
                             for char in action['value']:
-                                self._keyboard.press(char)
-                                self._keyboard.release(char)
+                                self._type_char(char)
                                 time.sleep(self.key_delay)
                             time.sleep(self.after_text_delay * len(action['value']))
                         elif action['type'] == 'key' and action['value']:

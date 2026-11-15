@@ -27,7 +27,7 @@ Scribe can punctuate dictation on its own: marks and capital letters are added t
 *   **One multilingual model** covers every recognition language except Breton (`br`). It is a compact offline truecase model (ONNX int8, CPU inference) that inserts `. , ? :` and a dash, restores capitalization, and uses script-specific marks for Chinese, Japanese, Arabic, Devanagari, Greek and Ethiopic.
 *   **Pauses are not sentence ends.** Vosk commits text on short pauses; Scribe treats those boundaries as soft and does not insert a period or start a new sentence there. The model also sees the previous words you dictated, so a pause in the middle of a sentence does not break it. A sentence really ends with `?`, `!`, `...`, an explicit Enter, or a spoken sentence-ending mark.
 *   **Lowercase after `,` `:` `;` `—`** for Russian and Ukrainian, while proper nouns keep their capitals.
-*   The model downloads automatically on first run into `models/punct/multi/` inside the data folder (`%LOCALAPPDATA%\Scribe`) and is never bundled into the executable. If the model is missing or you are offline, Scribe falls back to basic capitalization rules.
+*   The model downloads automatically on first run into `models/punct/multi/` inside the data folder (`%LOCALAPPDATA%\Scribe`, or the program folder in portable mode) and is never bundled into the executable. If the model is missing or you are offline, Scribe falls back to basic capitalization rules.
 
 The feature is controlled by **Enable punctuation and capitalization** on the **Models** settings page. It is on by default; turn it off to get raw Vosk output. See the [punctuation guide](docs/14_punctuation.md) for details, voice punctuation commands, and troubleshooting.
 
@@ -50,11 +50,15 @@ Settings, downloaded models and records are kept in `%LOCALAPPDATA%\Scribe`, so 
 
 **Standalone executable:**
 
-You can also download `Scribe.exe` and run it without installing. It always keeps its data in `%LOCALAPPDATA%\Scribe`, no matter which folder you launch it from, so an installed and a standalone copy share the same settings and models.
+You can also download `Scribe.exe` and run it without installing. It keeps its data in `%LOCALAPPDATA%\Scribe`, no matter which folder you launch it from, so an installed and a standalone copy share the same settings and models.
+
+**Portable:**
+
+To keep settings, models, records and logs next to the program, create an empty file named `portable.flag` in the same folder as `Scribe.exe`. Scribe then uses that folder instead of `%LOCALAPPDATA%\Scribe`, so the whole folder can be copied to another computer or a USB drive. Delete the flag to return to the shared `%LOCALAPPDATA%\Scribe` folder.
 
 ### Where Scribe Keeps Its Data
 
-Scribe always uses one per-user folder, regardless of where `Scribe.exe` is launched from:
+Scribe uses one data folder for everything: settings, models, records and the log.
 
 | Path | Contents |
 | --- | --- |
@@ -63,9 +67,9 @@ Scribe always uses one per-user folder, regardless of where `Scribe.exe` is laun
 | `%LOCALAPPDATA%\Scribe\records\` | Transcriptions saved to file |
 | `%LOCALAPPDATA%\Scribe\app.log` | Diagnostic log |
 
-The installed and standalone builds share this folder, so they use the same settings and models. On the first launch Scribe creates `settings.json` with defaults and asks for the recognition language and model.
+The installed and standalone builds share this folder, so they use the same settings and models. On the first launch Scribe creates `settings.json` with defaults and asks for the recognition language and model. In portable mode the same files live in the program folder instead of `%LOCALAPPDATA%\Scribe`.
 
-If an older copy kept `settings.json` or `models\` next to `Scribe.exe`, Scribe moves them into `%LOCALAPPDATA%\Scribe` once at startup and removes the old copies. To move Scribe to another computer, copy the whole `%LOCALAPPDATA%\Scribe` folder (or at least `settings.json` and `models\`).
+Without `portable.flag`, if an older copy kept `settings.json` or `models\` next to `Scribe.exe`, Scribe moves them into `%LOCALAPPDATA%\Scribe` once at startup and removes the old copies. To move Scribe to another computer, copy the whole data folder (or at least `settings.json` and `models\`).
 
 The installer adds a standard per-user uninstaller. Uninstalling removes the program and the entire `%LOCALAPPDATA%\Scribe` folder, including settings and models, so the next installation starts fresh.
 

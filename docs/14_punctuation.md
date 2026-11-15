@@ -90,7 +90,7 @@ Spoken marks take priority over the automatic ones: if the model already added a
 
 ### Model Files
 
-The punctuation model lives in one folder inside the data folder (`%LOCALAPPDATA%\Scribe`):
+The punctuation model lives in one folder inside the data folder (`%LOCALAPPDATA%\Scribe`, or the program folder in portable mode):
 
 ```
 models/
@@ -106,7 +106,7 @@ models/
 *   The catalog of downloadable files is [`punct_models.json`](https://github.com/AIgrator/Scribe/blob/main/punct_models.json).
 *   If the download fails or you are offline, Scribe continues to work in rules-only mode: sentence capitalization still works, but automatic commas and question marks are not added.
 
-To force a fresh download of the model, close Scribe, delete `%LOCALAPPDATA%\Scribe\models\punct\multi`, and start the program again.
+To force a fresh download of the model, close Scribe, delete the `models/punct/multi` folder from the data folder, and start the program again.
 
 ### Advanced Settings
 

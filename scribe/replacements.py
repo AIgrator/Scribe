@@ -61,6 +61,46 @@ def parse_replace_string(replace):
 
 
 
+MARK_CHARS = '.,!?:;…—–-'
+_MARK_ONLY_RE = re.compile(r'[.,!?:;…—–-]+')
+
+
+def _spoken_mark(actions):
+    """Return the mark text when a replacement inserts only a punctuation mark.
+
+    A rule like "точка" -> "[Backspace]." is a spoken mark: the explicit mark
+    must win over whatever the neural model already put on that word. Returns
+    None for normal text replacements.
+    """
+    marks = ''
+    for act in actions:
+        if act['type'] == 'key':
+            if act['value'] != 'Backspace':
+                return None
+            continue
+        value = act.get('value', '')
+        if not value:
+            continue
+        if not _MARK_ONLY_RE.fullmatch(value):
+            return None
+        marks += value
+    return marks or None
+
+
+def _drop_automatic_mark(actions):
+    """Remove the separating space and the model's mark before a spoken mark."""
+    while actions:
+        act = actions[-1]
+        if act['type'] != 'text':
+            break
+        value = re.sub(r'[ \t]+$', '', act['value'])
+        value = re.sub(r'[.,!?:;…—–-]+$', '', value)
+        act['value'] = value
+        if value:
+            break
+        actions.pop()
+
+
 def apply_replacements_actions(text, replacements):
     """Applies replacements to the text and returns a list of actions (text/key) for the entire result.
 
@@ -101,8 +141,20 @@ def apply_replacements_actions(text, replacements):
         if match:
             # Add replacement (parse special commands)
             replace = matched_item.get('replace', '')
-            actions.extend(parse_replace_string(replace))
-            pos = match.end()
+            parsed = parse_replace_string(replace)
+            spoken_mark = _spoken_mark(parsed)
+            if spoken_mark:
+                # The spoken mark wins over the model's automatic mark on the
+                # command word: drop the space/mark before it and any mark glued
+                # right after it ("Точка:" -> ".", not ".:").
+                _drop_automatic_mark(actions)
+                pos = match.end()
+                while pos < text_len and text[pos] in MARK_CHARS:
+                    pos += 1
+                actions.append({'type': 'text', 'value': spoken_mark})
+            else:
+                actions.extend(parsed)
+                pos = match.end()
         else:
             # No match — add current character as text
             actions.append({'type': 'text', 'value': text[pos]})
@@ -114,6 +166,12 @@ def apply_replacements_actions(text, replacements):
             final_actions[-1]['value'] += act['value']
         else:
             final_actions.append(act)
+    # A spoken mark ("точка" -> ".") replaces the command word but leaves the
+    # space that separated it: "домой точка" would give "домой .". A mark never
+    # follows a space, so attach it to the previous word.
+    for act in final_actions:
+        if act['type'] == 'text':
+            act['value'] = re.sub(r'[ \t]+([.,!?:;…。，！？：；،؟])', r'\1', act['value'])
     return final_actions
 
 # For backward compatibility: the old function returns a string

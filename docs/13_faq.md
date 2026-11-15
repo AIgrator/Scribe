@@ -20,12 +20,18 @@
 **A:** The key combination you've chosen might already be in use by another program on your system. Try assigning a different combination in the settings. In rare cases, running the program as an administrator may be required for global hotkeys to work correctly.
 
 **Q: Where are the program settings stored?**
-**A:** In `settings.json` inside the Scribe data folder: `%LOCALAPPDATA%\Scribe\settings.json`. Scribe always uses this folder, whether it was installed or launched as a standalone `Scribe.exe`.
+**A:** In `settings.json` inside the Scribe data folder:
+
+*   installed or standalone build: `%LOCALAPPDATA%\Scribe\settings.json`;
+*   portable build (empty `portable.flag` next to `Scribe.exe`): next to the executable.
 
 The same folder holds `models/`, `records/`, `cache/` and `app.log`. At every start Scribe writes the resolved absolute path to `app.log` as `Data dir: ...`, so the log always shows exactly which folder is in use.
 
 **Q: How do I move Scribe to another computer?**
-**A:** Install Scribe on the new computer (or copy `Scribe.exe`), close it, and copy the `%LOCALAPPDATA%\Scribe` folder from the old computer to the same path on the new one. It contains `settings.json` and the downloaded models, so Scribe starts with the same language, hotkeys and models. Copying only `%LOCALAPPDATA%\Scribe\models` keeps the downloaded files, but without `settings.json` Scribe will ask for the language and model again.
+**A:** Install Scribe on the new computer (or copy `Scribe.exe`), close it, and copy the `%LOCALAPPDATA%\Scribe` folder from the old computer to the same path on the new one. It contains `settings.json` and the downloaded models, so Scribe starts with the same language, hotkeys and models. Copying only `%LOCALAPPDATA%\Scribe\models` keeps the downloaded files, but without `settings.json` Scribe will ask for the language and model again. A portable copy is simpler: copy the whole program folder with `portable.flag` in it.
+
+**Q: How do I make Scribe portable?**
+**A:** Put an empty file named `portable.flag` next to `Scribe.exe`. Scribe then keeps `settings.json`, `models/`, `records/` and `app.log` in the program folder instead of `%LOCALAPPDATA%\Scribe`, so the folder can be moved to another computer or a USB drive. Delete the flag to go back to the shared `%LOCALAPPDATA%\Scribe` folder.
 
 **Q: How do I reset all settings to default?**
 **A:** Close the program, then delete `settings.json` from the data folder described above. The next time you launch the program, it will create a new file with default settings.
@@ -40,10 +46,10 @@ The same folder holds `models/`, `records/`, `cache/` and `app.log`. At every st
 **A:** Create rules on the Replacements tab, for example "comma" -> `[Backspace],` or "question mark" -> `[Backspace]?`. Ready-to-use examples are in [Section 14](./14_punctuation.md#dictating-punctuation-by-voice).
 
 **Q: Does punctuation work without internet?**
-**A:** Yes, once the model has been downloaded. Scribe downloads it automatically on first run into `models/punct/multi/` inside the data folder (`%LOCALAPPDATA%\Scribe`). If the model is missing, basic capitalization rules still work offline.
+**A:** Yes, once the model has been downloaded. Scribe downloads it automatically on first run into `models/punct/multi/` inside the data folder (`%LOCALAPPDATA%\Scribe`, or the program folder in portable mode). If the model is missing, basic capitalization rules still work offline.
 
 **Q: How do I uninstall the program?**
-**A:** If you used the installer, open **Settings → Apps → Installed apps**, find Scribe and choose **Uninstall**. If Scribe is still running, the uninstaller closes it automatically after you confirm the removal, so its locked files do not survive the uninstall. The uninstaller removes the program and the `%LOCALAPPDATA%\Scribe` data folder completely, including settings, records and downloaded models. After a full uninstall the next installation starts fresh, so it asks for the recognition language again. The standalone build has no uninstaller: delete `Scribe.exe`; remove the `%LOCALAPPDATA%\Scribe` folder too if you no longer need the settings and models.
+**A:** If you used the installer, open **Settings → Apps → Installed apps**, find Scribe and choose **Uninstall**. If Scribe is still running, the uninstaller closes it automatically after you confirm the removal, so its locked files do not survive the uninstall. The uninstaller removes the program and the `%LOCALAPPDATA%\Scribe` data folder completely, including settings, records and downloaded models. After a full uninstall the next installation starts fresh, so it asks for the recognition language again. The standalone build has no uninstaller: delete `Scribe.exe`; remove the `%LOCALAPPDATA%\Scribe` folder too if you no longer need the settings and models. The portable build has no uninstaller either: just delete its folder.
 
 **Q: How do I stop Scribe from starting automatically?**
 **A:** Open **Settings → System** and clear **Start Scribe when I sign in**. The installer may have added the same startup entry, so the checkbox reads and writes the real operating-system state. No restart is needed.
