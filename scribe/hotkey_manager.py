@@ -1,8 +1,10 @@
 # hotkey_manager.py
+import ctypes
 import logging
 import platform
 import queue
 import threading
+import time
 
 from pynput import keyboard
 from PyQt5.QtCore import QCoreApplication, QObject, QTimer
@@ -28,6 +30,33 @@ _MODIFIER_VKS = {
     0x5B: 'win',
     0x5C: 'win',
 }
+
+# How long a key may stay "held" before its state is considered stale. This is
+# longer than the slowest Windows auto-repeat delay (~1 s), so holding a key
+# still fires once, while a missed release no longer disables the key forever.
+_REPEAT_GUARD_SECONDS = 5.0
+
+
+def _async_modifiers():
+    """Returns the modifiers that are physically down right now.
+
+    Reading the real key state avoids a classic failure of hook-based hotkeys:
+    if a modifier release event is missed (a UAC prompt, a fast layout switch,
+    the hook being briefly removed), a tracked set keeps that modifier forever
+    and every later combination looks wrong until the listener is recreated.
+    """
+    user32 = ctypes.windll.user32
+    mods = set()
+    if user32.GetAsyncKeyState(0x11) & 0x8000:  # VK_CONTROL
+        mods.add('ctrl')
+    if user32.GetAsyncKeyState(0x12) & 0x8000:  # VK_MENU
+        mods.add('alt')
+    if user32.GetAsyncKeyState(0x10) & 0x8000:  # VK_SHIFT
+        mods.add('shift')
+    if (user32.GetAsyncKeyState(0x5B) & 0x8000  # VK_LWIN
+            or user32.GetAsyncKeyState(0x5C) & 0x8000):  # VK_RWIN
+        mods.add('win')
+    return frozenset(mods)
 
 
 def _key_vk(key):
@@ -55,15 +84,19 @@ class HotkeyManager(QObject):
     # How often to check that the listener thread is still alive.
     _WATCHDOG_INTERVAL_MS = 15000
 
-    def __init__(self, settings_manager, controller):
+    def __init__(self, settings_manager, controller, modifier_provider=None):
         super().__init__()
         self.settings_manager = settings_manager
         self.controller = controller
+        # Tests inject a deterministic modifier source; production reads the
+        # real key state on Windows.
+        self._modifier_provider = modifier_provider
         self.listener = None
         self._last_registered_hotkeys = {}
         self._actions = {}
         self._pressed_vks = set()
         self._modifiers = set()
+        self._last_press = {}
         self._generation = 0
         self._queue = queue.Queue()
         self._worker = threading.Thread(
@@ -208,6 +241,7 @@ class HotkeyManager(QObject):
         try:
             self._pressed_vks.clear()
             self._modifiers.clear()
+            self._last_press.clear()
             self.listener = keyboard.Listener(
                 on_press=self._on_press,
                 on_release=self._on_release,
@@ -222,6 +256,10 @@ class HotkeyManager(QObject):
     def _on_press(self, key, injected=False):
         """Runs on the pynput hook thread: it must stay as short as possible."""
         try:
+            if injected:
+                # Scribe types text by injecting key events; they must not
+                # trigger a hotkey of their own.
+                return
             vk = _key_vk(key)
             if vk is None:
                 return
@@ -229,10 +267,26 @@ class HotkeyManager(QObject):
             if modifier:
                 self._modifiers.add(modifier)
                 return
-            if vk in self._pressed_vks:
-                return  # auto-repeat while the key is held down
+            now = time.monotonic()
+            last = self._last_press.get(vk)
+            if vk in self._pressed_vks and last is not None:
+                if now - last < _REPEAT_GUARD_SECONDS:
+                    # Auto-repeat while the key is held down.
+                    self._last_press[vk] = now
+                    return
+                # The release was lost (a UAC prompt, a lock screen, a brief
+                # hook removal). Recover instead of ignoring the key forever.
+                logger.debug("Recovered a stuck key state for vk=0x%02X", vk)
             self._pressed_vks.add(vk)
-            action = self._actions.get((frozenset(self._modifiers), vk))
+            self._last_press[vk] = now
+            provider = getattr(self, '_modifier_provider', None)
+            if provider is not None:
+                mods = provider()
+            elif _IS_WINDOWS:
+                mods = _async_modifiers()
+            else:
+                mods = frozenset(self._modifiers)
+            action = self._actions.get((mods, vk))
             if action is not None:
                 self._queue.put((self._generation, action))
         except Exception:  # noqa: BLE001
@@ -247,7 +301,14 @@ class HotkeyManager(QObject):
             modifier = _MODIFIER_VKS.get(vk)
             if modifier:
                 self._modifiers.discard(modifier)
+                # Releasing a modifier ends the combination. Any key still
+                # marked as held belongs to that combination and its release
+                # was probably missed, so clear the stale state now.
+                self._pressed_vks.clear()
+                self._last_press.clear()
+                return
             self._pressed_vks.discard(vk)
+            self._last_press.pop(vk, None)
         except Exception:  # noqa: BLE001
             logger.exception("Error while handling a hotkey release")
 
@@ -312,6 +373,7 @@ class HotkeyManager(QObject):
                 logger.debug(f"Error while stopping the hotkey listener: {e}")
         self._pressed_vks.clear()
         self._modifiers.clear()
+        self._last_press.clear()
 
     def __del__(self):
         """Ensure the listener and worker are stopped when the manager is deleted."""
