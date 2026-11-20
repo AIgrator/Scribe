@@ -4,6 +4,7 @@ import logging
 from PyQt5.QtGui import QColor
 from PyQt5.QtWidgets import (
     QColorDialog,
+    QComboBox,
     QFormLayout,
     QGroupBox,
     QHBoxLayout,
@@ -84,13 +85,21 @@ class MainSettingsPageWidget(QWidget):
             (self.texts.get('auto_stop_5m', '5 minutes'), 300),
             (self.texts.get('auto_stop_10m', '10 minutes'), 600),
         ]
+        # A drop-down keeps the row compact: six buttons made the whole
+        # settings window much wider than the other pages need.
+        self.auto_stop_preset_select = QComboBox()
+        self.auto_stop_preset_select.setSizeAdjustPolicy(
+            QComboBox.AdjustToContents)
+        self.auto_stop_preset_select.setPlaceholderText(
+            self.texts.get('auto_stop_custom', 'Custom'))
+        self.auto_stop_preset_select.setToolTip(
+            self.texts.get('auto_stop_presets_hint',
+                           'Choose a ready-made timeout. The fields above can still be set manually.'))
         for text, seconds in self.auto_stop_presets:
-            button = QPushButton(text)
-            button.setAutoDefault(False)
-            button.setDefault(False)
-            button.clicked.connect(
-                lambda checked=False, value=seconds: self._apply_auto_stop_preset(value))
-            presets_layout.addWidget(button)
+            self.auto_stop_preset_select.addItem(text, seconds)
+        self.auto_stop_preset_select.currentIndexChanged.connect(
+            self._on_auto_stop_preset_selected)
+        presets_layout.addWidget(self.auto_stop_preset_select)
         presets_layout.addStretch()
         self.mode_buttons_group_layout.addLayout(presets_layout)
 
@@ -133,6 +142,14 @@ class MainSettingsPageWidget(QWidget):
             return
         self._save_auto_stop()
 
+    def _on_auto_stop_preset_selected(self, _index):
+        if self._auto_stop_updating:
+            return
+        seconds = self.auto_stop_preset_select.currentData()
+        if seconds is None:
+            return
+        self._apply_auto_stop_preset(seconds)
+
     def _apply_auto_stop_preset(self, seconds):
         """Applies a preset immediately, without scrolling the spin boxes."""
         self._set_auto_stop_controls(seconds, save=True)
@@ -147,6 +164,7 @@ class MainSettingsPageWidget(QWidget):
         try:
             self.auto_stop_minutes.setValue(min(minutes, 60))
             self.auto_stop_seconds.setValue(seconds if minutes <= 60 else 0)
+            self._sync_auto_stop_preset(total_seconds)
         finally:
             self._auto_stop_updating = False
         self._update_auto_stop_hint()
@@ -156,18 +174,37 @@ class MainSettingsPageWidget(QWidget):
     def _current_auto_stop_seconds(self):
         return self.auto_stop_minutes.value() * 60 + self.auto_stop_seconds.value()
 
+    def _sync_auto_stop_preset(self, total_seconds):
+        """Selects the matching preset, or the placeholder for a custom value."""
+        index = self.auto_stop_preset_select.findData(total_seconds)
+        self.auto_stop_preset_select.setCurrentIndex(index)
+
     def _save_auto_stop(self):
+        total = self._current_auto_stop_seconds()
+        # Keep the drop-down honest when the value was typed by hand.
+        self._auto_stop_updating = True
+        try:
+            self._sync_auto_stop_preset(total)
+        finally:
+            self._auto_stop_updating = False
         self._update_auto_stop_hint()
-        self.settings_manager.set(
-            'auto_stop_timeout', self._current_auto_stop_seconds())
+        self.settings_manager.set('auto_stop_timeout', total)
 
     def _update_auto_stop_hint(self):
+        """Shows the interval only for a custom value; presets speak for themselves."""
         total = self._current_auto_stop_seconds()
-        if total == 0:
-            self.auto_stop_hint.setText(
-                self.texts.get('auto_stop_never', 'Never'))
-        else:
+        if total == 0 or self.auto_stop_preset_select.currentIndex() >= 0:
             self.auto_stop_hint.setText("")
+            return
+        minutes, seconds = divmod(total, 60)
+        minute_unit = self.texts.get('auto_stop_minutes', 'min').strip()
+        second_unit = self.texts.get('auto_stop_seconds', 'sec').strip()
+        parts = []
+        if minutes:
+            parts.append(f"{minutes} {minute_unit}")
+        if seconds:
+            parts.append(f"{seconds} {second_unit}")
+        self.auto_stop_hint.setText(' '.join(parts))
 
     def _on_controller_reloaded(self, new_controller):
         """Handles the controller reload signal by reconnecting signals."""

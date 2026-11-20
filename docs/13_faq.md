@@ -12,12 +12,16 @@
 2.  Make sure your cursor is in an active text input field (e.g., a Word document, a browser search bar, or a notepad). The program types where the cursor is.
 3.  Verify that the correct microphone is selected in the main window or the tray menu.
 4.  Ensure the microphone is not muted and its volume is set to an adequate level in Windows settings.
+5.  If the mode turns itself off immediately after you start it, Scribe could not open the microphone. Check that the device is connected and not used exclusively by another program; the exact reason is written to `app.log`. In older versions a quick stop/start could also leave the text inserter in a stopped state — update to the latest version.
 
 **Q: The wrong language is being recognized, or it's just a nonsensical string of words.**
 **A:** This means the selected model does not match the language you are speaking. Choose the correct model from the dropdown list in the main window or switch to it using a hotkey.
 
 **Q: The hotkeys are not working.**
-**A:** The key combination you've chosen might already be in use by another program on your system. Try assigning a different combination in the settings. In rare cases, running the program as an administrator may be required for global hotkeys to work correctly.
+**A:** Hotkeys are matched by the physical key, so they keep working in any keyboard layout (English, Russian, French, ...) and after a reboot. Hotkeys saved by older versions under a Cyrillic layout, such as `Alt+ю`, still map to the same key. If a combination still does nothing:
+1.  The combination may already be used by another program. Try a different one, for example `Ctrl+Alt+0`.
+2.  Use `Ctrl` or `Alt` plus a key that exists in every layout (`0`–`9`, `F1`–`F12`).
+3.  In rare cases, running Scribe as an administrator is required for global hotkeys to reach elevated windows.
 
 **Q: Where are the program settings stored?**
 **A:** In `settings.json` inside the Scribe data folder:

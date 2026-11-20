@@ -12,7 +12,8 @@ This tab contains mode control, auto-stop and colors.
 
 *   **Automatically stop listening to the microphone via:** This feature helps save resources and prevent accidental recognition by automatically turning off the microphone after a set period of silence.
     *   **How it works:** A timer starts when listening begins. Every recognized word or phrase resets the timer. If you remain silent for longer than the specified duration, listening will stop. This works for both "Transcription" and "Command" modes.
-    *   **Available options:** You can choose from several preset intervals (e.g. 10 seconds, 1 minute) or select "Never" to disable this feature.
+    *   **Exact interval:** Set the minutes (0–60) and seconds (0–59) in the two fields next to the label. `0 min 0 sec` means **Never**, so listening continues until you stop it yourself. For a custom value the label shows the total interval, for example `2 min 5 sec`.
+    *   **Quick presets:** The **Quick** drop-down applies a ready-made interval immediately: **Never**, 10 seconds, 30 seconds, 1 minute, 5 minutes or 10 minutes. If you type a custom value, the drop-down shows **Custom** and keeps your value.
 
 *   **Transcription Button Color:** Allows you to choose the color that highlights the button in the main window and the tray icon when transcription mode is active.
 
