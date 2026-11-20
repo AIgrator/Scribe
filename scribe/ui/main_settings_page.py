@@ -4,12 +4,12 @@ import logging
 from PyQt5.QtGui import QColor
 from PyQt5.QtWidgets import (
     QColorDialog,
-    QComboBox,
     QFormLayout,
     QGroupBox,
     QHBoxLayout,
     QLabel,
     QPushButton,
+    QSpinBox,
     QVBoxLayout,
     QWidget,
 )
@@ -40,11 +40,43 @@ class MainSettingsPageWidget(QWidget):
 
         self.mode_buttons_group_layout.addWidget(self.mode_controls)
 
-        # Auto-stop timeout selector
+        # Auto-stop timeout: minutes + seconds, plus one-click presets.
         self.auto_stop_label = QLabel(self.texts.get('auto_stop_label', 'Auto-stop listening:'))
-        self.auto_stop_select = QComboBox()
+        self._auto_stop_updating = False
 
-        self.timeout_options = [
+        self.auto_stop_minutes = QSpinBox()
+        self.auto_stop_minutes.setRange(0, 60)
+        self.auto_stop_minutes.setSuffix(
+            ' ' + self.texts.get('auto_stop_minutes', 'min'))
+        self.auto_stop_minutes.setToolTip(
+            self.texts.get('auto_stop_minutes_hint',
+                           'Minutes before listening stops. 0 minutes and 0 seconds means Never.'))
+        self.auto_stop_minutes.valueChanged.connect(self._on_auto_stop_changed)
+
+        self.auto_stop_seconds = QSpinBox()
+        self.auto_stop_seconds.setRange(0, 59)
+        self.auto_stop_seconds.setSuffix(
+            ' ' + self.texts.get('auto_stop_seconds', 'sec'))
+        self.auto_stop_seconds.setToolTip(
+            self.texts.get('auto_stop_seconds_hint',
+                           'Additional seconds before listening stops.'))
+        self.auto_stop_seconds.valueChanged.connect(self._on_auto_stop_changed)
+
+        self.auto_stop_hint = QLabel()
+        self.auto_stop_hint.setStyleSheet("color: gray;")
+
+        auto_stop_layout = QHBoxLayout()
+        auto_stop_layout.addWidget(self.auto_stop_label)
+        auto_stop_layout.addWidget(self.auto_stop_minutes)
+        auto_stop_layout.addWidget(self.auto_stop_seconds)
+        auto_stop_layout.addWidget(self.auto_stop_hint)
+        auto_stop_layout.addStretch()
+        self.mode_buttons_group_layout.addLayout(auto_stop_layout)
+
+        presets_layout = QHBoxLayout()
+        presets_layout.addWidget(QLabel(
+            self.texts.get('auto_stop_presets', 'Quick:')))
+        self.auto_stop_presets = [
             (self.texts.get('auto_stop_never', 'Never'), 0),
             (self.texts.get('auto_stop_10s', '10 seconds'), 10),
             (self.texts.get('auto_stop_30s', '30 seconds'), 30),
@@ -52,23 +84,18 @@ class MainSettingsPageWidget(QWidget):
             (self.texts.get('auto_stop_5m', '5 minutes'), 300),
             (self.texts.get('auto_stop_10m', '10 minutes'), 600),
         ]
+        for text, seconds in self.auto_stop_presets:
+            button = QPushButton(text)
+            button.setAutoDefault(False)
+            button.setDefault(False)
+            button.clicked.connect(
+                lambda checked=False, value=seconds: self._apply_auto_stop_preset(value))
+            presets_layout.addWidget(button)
+        presets_layout.addStretch()
+        self.mode_buttons_group_layout.addLayout(presets_layout)
 
-        for text, seconds in self.timeout_options:
-            self.auto_stop_select.addItem(text, seconds)
-
-        current_timeout = self.settings.get('auto_stop_timeout', 0)
-        for i, (_, seconds) in enumerate(self.timeout_options):
-            if seconds == current_timeout:
-                self.auto_stop_select.setCurrentIndex(i)
-                break
-
-        self.auto_stop_select.currentIndexChanged.connect(self._on_auto_stop_changed)
-
-        auto_stop_layout = QHBoxLayout()
-        auto_stop_layout.addWidget(self.auto_stop_label)
-        auto_stop_layout.addWidget(self.auto_stop_select)
-        auto_stop_layout.addStretch()
-        self.mode_buttons_group_layout.addLayout(auto_stop_layout)
+        self._set_auto_stop_controls(
+            self.settings.get('auto_stop_timeout', 0), save=False)
 
         layout.addRow(self.mode_buttons_group)
 
@@ -101,9 +128,46 @@ class MainSettingsPageWidget(QWidget):
         color_layout.addWidget(self.command_color_btn)
         layout.addRow(color_group)
 
-    def _on_auto_stop_changed(self, index):
-        timeout_seconds = self.auto_stop_select.itemData(index)
-        self.settings_manager.set('auto_stop_timeout', timeout_seconds)
+    def _on_auto_stop_changed(self, _value):
+        if self._auto_stop_updating:
+            return
+        self._save_auto_stop()
+
+    def _apply_auto_stop_preset(self, seconds):
+        """Applies a preset immediately, without scrolling the spin boxes."""
+        self._set_auto_stop_controls(seconds, save=True)
+
+    def _set_auto_stop_controls(self, total_seconds, save):
+        try:
+            total_seconds = max(0, int(total_seconds))
+        except (TypeError, ValueError):
+            total_seconds = 0
+        minutes, seconds = divmod(total_seconds, 60)
+        self._auto_stop_updating = True
+        try:
+            self.auto_stop_minutes.setValue(min(minutes, 60))
+            self.auto_stop_seconds.setValue(seconds if minutes <= 60 else 0)
+        finally:
+            self._auto_stop_updating = False
+        self._update_auto_stop_hint()
+        if save:
+            self._save_auto_stop()
+
+    def _current_auto_stop_seconds(self):
+        return self.auto_stop_minutes.value() * 60 + self.auto_stop_seconds.value()
+
+    def _save_auto_stop(self):
+        self._update_auto_stop_hint()
+        self.settings_manager.set(
+            'auto_stop_timeout', self._current_auto_stop_seconds())
+
+    def _update_auto_stop_hint(self):
+        total = self._current_auto_stop_seconds()
+        if total == 0:
+            self.auto_stop_hint.setText(
+                self.texts.get('auto_stop_never', 'Never'))
+        else:
+            self.auto_stop_hint.setText("")
 
     def _on_controller_reloaded(self, new_controller):
         """Handles the controller reload signal by reconnecting signals."""

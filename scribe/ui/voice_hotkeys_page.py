@@ -15,7 +15,7 @@ class HotkeyDelegate(QStyledItemDelegate):
         value = index.model().data(index, 0)
         editor.set_hotkey(value)
     def setModelData(self, editor, model, index):
-        model.setData(index, editor.text(), 0)
+        model.setData(index, editor.hotkey_text(), 0)
 
 class VoiceHotkeysPage(TableSettings):
     def __init__(self, texts, parent=None, settings_manager=None):

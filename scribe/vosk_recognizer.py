@@ -257,6 +257,13 @@ class VoskRecognizer(QObject):
         except Exception as e:
             logger.error(f"[self.id][{recognizer_id}] Failed to open microphone: {e}")
             self.running = False
+            # Do not leave the inserter and the UI in a "running" state: the
+            # mode would look enabled while nothing can ever be typed.
+            try:
+                self.inserter.stop()
+            except Exception:  # noqa: BLE001
+                pass
+            self.recognition_state_changed.emit(self.running, self.mode)
             return
 
         logger.info(f"[self.id][{recognizer_id}] Recognition started (running={self.running})")
@@ -287,10 +294,13 @@ class VoskRecognizer(QObject):
         with self.audio_queue.mutex:
             self.audio_queue.queue.clear()
 
-        # 4. The recognition thread is a daemon, so we don't need to join it.
-        # It will exit automatically when the `self.running` flag is False.
-        # Joining it here can cause deadlocks if stop() is called from a worker thread.
+        # 4. Let the recognition thread finish the result it is working on, so
+        # its last words still reach the inserter. It is a daemon, so a short
+        # join is enough; a long one could block stop() for no reason.
+        thread = self.recognition_thread
         self.recognition_thread = None
+        if thread is not None and thread.is_alive() and thread is not threading.current_thread():
+            thread.join(timeout=1.0)
 
         # 5. Wait for any pending text insertion operations to complete.
         if hasattr(self.inserter, 'wait_until_idle'):

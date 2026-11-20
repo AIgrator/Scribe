@@ -112,6 +112,13 @@ class VoiceTyperController(QObject):
         if not self.running:
             self.running = True # Set running to true before starting threads
             self.recognizer.start()
+            if not getattr(self.recognizer, 'running', False):
+                # The microphone could not be opened. Do not report a running
+                # mode: the UI would look enabled while no text can appear.
+                logger.error("Recognizer failed to start; resetting the controller state.")
+                self.running = False
+                self.state_changed.emit(False, getattr(self.recognizer, 'mode', None))
+                return
             self.state_changed.emit(self.running, getattr(self.recognizer, 'mode', None))
 
             # Start the auto-stop thread if the timeout is set

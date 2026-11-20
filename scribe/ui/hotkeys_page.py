@@ -56,11 +56,11 @@ class HotkeysPageWidget(QWidget):
 
     def get_modes(self):
         # Only modes (without models)
-        return {k: v.text() for k, v in self.hotkey_inputs.items() if k in ('transcribe_mode', 'command_mode')}
+        return {k: v.hotkey_text() for k, v in self.hotkey_inputs.items() if k in ('transcribe_mode', 'command_mode')}
 
     def get_models_hotkeys(self):
         # Only hotkeys for models
-        return {k: v.text() for k, v in self.hotkey_inputs.items() if k not in ('transcribe_mode', 'command_mode')}
+        return {k: v.hotkey_text() for k, v in self.hotkey_inputs.items() if k not in ('transcribe_mode', 'command_mode')}
 
     def update_hotkeys(self):
         # Completely recreates hotkey inputs for models (e.g., after adding/removing a model)

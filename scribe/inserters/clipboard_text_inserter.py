@@ -42,8 +42,11 @@ class ClipboardTextInserter(TextInserter):
         self.settings_manager = settings_manager
         self._orig_clipboard = None
         self._queue = queue.Queue()
-        self._worker = threading.Thread(target=self._worker_loop, daemon=True)
+        self._worker = None
         self._running = False
+        self._pending = 0
+        self._pending_lock = threading.Lock()
+        self._state_lock = threading.Lock()
         self._keyboard = Controller()
         self._update_settings(self.settings_manager.all())
         self.settings_manager.settings_changed.connect(self._update_settings)
@@ -63,25 +66,52 @@ class ClipboardTextInserter(TextInserter):
         except Exception as e:
             self._orig_clipboard = None
             logger.error(f"Failed to get buffer on startup: {e}")
-        self._running = True
-        if not self._worker.is_alive():
-            self._worker = threading.Thread(target=self._worker_loop, daemon=True)
-            self._worker.start()
+        with self._state_lock:
+            if self._running and self._worker is not None and self._worker.is_alive():
+                return
+            self._running = True
+            self._start_worker()
+
+    def _start_worker(self):
+        """Starts a worker with its own queue (the caller holds _state_lock)."""
+        self._queue = queue.Queue()
+        self._worker = threading.Thread(
+            target=self._worker_loop, args=(self._queue,), daemon=True)
+        self._worker.start()
+        logger.info("Clipboard inserter worker started.")
 
     def stop(self):
         logger.info("stop() called")
-        self._running = False
-        self._queue.put(('__STOP__', None))
-        if self._worker.is_alive():
-            self._worker.join(timeout=1)
+        with self._state_lock:
+            self._running = False
+            self._queue.put(('__STOP__', None))
+            worker = self._worker
+        if worker is not None and worker.is_alive():
+            worker.join(timeout=1)
+
+    def _enqueue(self, cmd, arg):
+        """Queues a command, starting a fresh worker if the old one is gone."""
+        with self._state_lock:
+            if not self._running:
+                logger.warning(
+                    "Ignoring %s: the clipboard inserter is stopped.", cmd)
+                return
+            worker = self._worker
+            if worker is None or not worker.is_alive():
+                logger.warning(
+                    "The clipboard inserter worker is not running; restarting it.")
+                self._start_worker()
+            with self._pending_lock:
+                self._pending += 1
+            self._queue.put((cmd, arg))
 
     def insert_text(self, text: str):
         logger.info(f"insert_text() called with text: {text!r}")
-        self._queue.put(('insert_text', text))
+        self._enqueue('insert_text', text)
 
     def erase_chars(self, count: int):
         logger.info(f"erase_chars() called with count: {count}")
-        self._queue.put(('erase_chars', count))
+        self._enqueue('erase_chars', count)
 
     def _paste(self):
         """Simulate Ctrl+V. Win32 virtual keys first, pynput as fallback."""
@@ -93,12 +123,12 @@ class ClipboardTextInserter(TextInserter):
             time.sleep(0.02)
             self._keyboard.release('v')
 
-    def _worker_loop(self):
-        while self._running:
+    def _worker_loop(self, work_queue):
+        while True:
+            cmd, arg = work_queue.get()
+            if cmd == '__STOP__':
+                break
             try:
-                cmd, arg = self._queue.get()
-                if cmd == '__STOP__':
-                    break
                 if cmd == 'insert_text':
                     copykitten.copy(arg)
                     self._paste()
@@ -127,20 +157,23 @@ class ClipboardTextInserter(TextInserter):
                         self._keyboard.release(Key.backspace)
                         time.sleep(0.01)
             except Exception as e:
-                logger.error(f"{e}")
+                logger.error(f"Error in clipboard text inserter worker loop: {e}")
+            finally:
+                with self._pending_lock:
+                    self._pending -= 1
 
     def insert_actions(self, actions: list):
         """Pastes a list of actions (text/key) via the clipboard, supporting special keys."""
         logger.info(f"called with actions: {actions!r}")
-        self._queue.put(('insert_actions', actions))
+        self._enqueue('insert_actions', actions)
 
     def wait_until_idle(self, timeout=2.0):
-        """Waits until the command queue and worker thread are completely empty."""
-        start_time = time.time()
-        while self._worker.is_alive():
-            if self._queue.empty():
-                break
-            if time.time() - start_time > timeout:
-                logger.warning("wait_until_idle: timeout")
-                break
+        """Waits until every queued command has been pasted."""
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            with self._pending_lock:
+                pending = self._pending
+            if pending <= 0:
+                return
             time.sleep(0.01)
+        logger.warning("wait_until_idle: timeout")
